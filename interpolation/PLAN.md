@@ -80,6 +80,7 @@ interpolation/
     fp_utils.hpp    // ulp(), ulp_distance() via bit_cast, next_up/down, to_string of hex floats
     reference.hpp   // __float128 reference
     cases.hpp       // data sets of section 3
+    sampling.hpp    // exhaustive / window / random choice of x (section 4)
     report.hpp      // tiny table/CSV printer, CHECK macro (no external framework)
   tests/
     t01_endpoints.cpp      // properties 1, 2
@@ -88,9 +89,11 @@ interpolation/
     t04_accuracy_by_t.cpp  // property 5
     t05_knots.cpp          // property 6
     t06_anchor_switch.cpp  // property 7
-  results/                 // CSV output (git-ignored or committed snapshots)
-  plot.py                  // optional: plots from CSV
+  results/                 // CSV + text output per configuration (committed snapshot)
 ```
+
+(`plot.py` was dropped: matplotlib is not available in the build environment;
+the CSV files can be plotted with any tool.)
 
 Each test is a standalone `main()`, prints a human-readable table per
 (case × formula × type) and writes a CSV. Tests that check *guaranteed*

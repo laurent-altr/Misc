@@ -1,0 +1,29 @@
+t02: monotonicity under a one-ulp move of x
+
+=== float ===  violations (max size in ulps of y)
+formula          unit        off       yoff       sign       flat      steep        neg        odd       rand
+-------------------------------------------------------------------------------------------------------------
+A                   0          0          0          0          0          0          0          0          0
+A'                  0          0          0          0          0          0          0          0          0
+A''                 0          0          0          0          0          0          0          0          0
+B                   0          0          0          0          0          0          0          0          0
+C                   0          0   3092 (1)          0   7178 (1)          0          0          0  19048 (1)
+D                   0          0          0          0          0          0          0          0          0
+E                   0          0          0          0          0          0          0          0          0
+F                   0          0          0          0          0          0          0          0          0
+(14475699 steps per formula)
+
+=== double ===  violations (max size in ulps of y)
+formula          unit        off       yoff       sign       flat      steep        neg        odd       rand
+-------------------------------------------------------------------------------------------------------------
+A                   0          0          0          0          0          0          0          0          0
+A'                  0          0          0          0          0          0          0          0          0
+A''                 0          0          0          0          0          0          0          0          0
+B                   0          0          0          0          0          0          0          0          0
+C                   0          0   3132 (1)          0   7092 (1)          0          0          0  18842 (1)
+D                   0          0          0          0          0          0          0          0          0
+E                   0          0          0          0          0          0          0          0          0
+F                   0          0          0          0          0          0          0          0          0
+(5768320 steps per formula)
+
+all guaranteed-property checks passed
