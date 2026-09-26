@@ -1,4 +1,4 @@
-// Property 7: formula E uses the left bound in the first half of the interval
+// Property 7: formula E (and G, H, W) uses the left bound in the first half of the interval
 // and the right one in the second half. Around the switch the two formulas
 // round differently, so the result may step backwards. This scans a window
 // of consecutive x around the midpoint of many random increasing segments.
@@ -21,7 +21,7 @@ template <class T> void run() {
     bool shown = false;
     for (const auto& fm : interp::formulas<T>()) {
         const std::string id = fm.id;
-        if (id != "A" && id != "B" && id != "E") continue;
+        if (id != "A" && id != "B" && id != "E" && id != "G" && id != "H" && id != "W") continue;
         long bad_segs = 0, viol = 0;
         std::int64_t worst = 0;
         for (const auto& s : segs) {

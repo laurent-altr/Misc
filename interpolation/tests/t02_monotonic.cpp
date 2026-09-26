@@ -2,7 +2,7 @@
 // segment, f(next_up(x)) >= f(x) must hold (<= for a decreasing one).
 // Formulas made only of correctly rounded operations that are each monotone
 // in x (A, A', A'', B, D, F) cannot violate it; C (sum of an increasing and a
-// decreasing term) and E (switches formula at mid-interval) can.
+// decreasing term) and E, G, H, W (switch formula at mid-interval) can.
 #include <cstdio>
 #include <map>
 
@@ -60,7 +60,7 @@ template <class T> void run(report::Checks& checks) {
         }
         tab.line(row);
         const std::string id = fm.id;
-        if (id != "C" && id != "E")
+        if (id == "A" || id == "A'" || id == "A''" || id == "B" || id == "D" || id == "F")
             checks.expect(total == 0, id + " (" + fp::type_name<T>() + ") monotonic");
     }
     long steps = 0;

@@ -48,8 +48,8 @@ template <class T> void run(report::Checks& checks) {
 
         const std::string id = fm.id;
         const std::string who = id + " (" + fp::type_name<T>() + ")";
-        if (id == "A" || id == "A'" || id == "A''" || id == "E" || id == "F") checks.expect(ex0 == n, who + " exact at x0");
-        if (id == "B" || id == "E" || id == "F") checks.expect(ex1 == n, who + " exact at x1");
+        if (id == "A" || id == "A'" || id == "A''" || id == "E" || id == "F" || id == "G" || id == "H" || id == "W") checks.expect(ex0 == n, who + " exact at x0");
+        if (id == "B" || id == "E" || id == "F" || id == "G" || id == "H" || id == "W") checks.expect(ex1 == n, who + " exact at x1");
         if (id != "C") checks.expect(flat_ok == flat_n, who + " preserves constants");
     }
 }

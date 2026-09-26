@@ -8,6 +8,12 @@ how the result moves when `x` moves by one ulp (ε), and whether that depends
 on the bound the formula is anchored on. See [PLAN.md](PLAN.md) for the
 design.
 
+**Goal: no stairs.** When `y` is printed for successive representable `x`,
+it should follow the correctly rounded values, without flat runs followed by
+jumps that the exact segment does not have. The answer is formula **H**
+(nearest bound + compensated arithmetic, below). For `float` data, formula
+**W** (computed in `double`) is even simpler and just as good.
+
 ```
 make              # build + run the strict configuration (-O2 -ffp-contract=off)
 make run CFG=fast # one configuration: strict, contract, fast, O0 (x87 if -m32 works)
@@ -19,7 +25,7 @@ This requires g++ with C++20 and libquadmath. The reference values are
 computed in `__float128`. Each test prints tables to stdout. The output is
 also saved as `results/<cfg>/<test>.txt` and as CSV files. A test exits
 non-zero only when a *guaranteed* property is violated. `make matrix` takes
-about 7 minutes.
+about 8 minutes.
 
 ## Formulas
 
@@ -36,6 +42,9 @@ Every formula below is written for `x` in `[x0,x1]`, with `dx = x1-x0` and
 | D   | `fma(t, dy, y0)` |
 | E   | A when `x-x0 < x1-x`, else B (nearest bound) |
 | F   | `std::lerp(y0, y1, t)` |
+| G   | nearest bound, `fma(x-xa, dy/dx, ya)` |
+| H   | nearest bound, compensated: the rounding errors of `dx`, `dy`, the slope, `x-xa` and the product are computed exactly (TwoSum / fma) and added back before the last rounding |
+| W   | E computed in a wider type (`double` for float data, 80-bit `long double` for double data), rounded once |
 | CR  | correctly rounded exact value (the best achievable; baseline only) |
 
 ## Tests
@@ -47,13 +56,77 @@ Every formula below is written for `x` in `[x0,x1]`, with `dx = x1-x0` and
 | `t03_eps_discrepancy` | **core**: the step `f(next_up(x)) - f(x)` compared with the exact step, split by `t<0.1` / `t>0.9` |
 | `t04_accuracy_by_t` | pointwise error in 10 bins of `t` |
 | `t05_knots` | continuity and monotonicity at the interior knots of random tables |
-| `t06_anchor_switch` | monotonicity around E's switch point at mid-interval |
+| `t06_anchor_switch` | monotonicity around the switch point of E, G, H, W at mid-interval |
+| `t07_stairs` | **goal**: runs of 2048 consecutive `x` near t≈0, t≈0.5, t≈1, x≈0, y≈0 and random t; steps compared with the CR steps, and the step sequences printed for a few cases |
+| `t08_speed` | ns per call |
 
 Errors are expressed in ulps of `max(|y0|,|y1|)`. Near a zero crossing, the
 ulp of `y` itself becomes tiny, so relative errors explode for every formula
 that is not correctly rounded. The `ulp(y)` column of t04 shows this.
 
 ## Results (gcc 13.3, x86-64)
+
+### 0. Staircase: which formula follows the ideal steps (t07)
+
+Percentage of one-ulp steps of `x` where the step of `y` equals the step of
+the correctly rounded result. "Stalls" counts steps where `y` stays flat
+while CR moves. Strict build.
+
+| formula | float %=CR | double %=CR | double: at y≈0 | double stalls | ns/call (double) |
+|---------|-----------:|------------:|---------------:|--------------:|-----------------:|
+| A (left)            | 53.0 | 53.8 | 1.2 | 15 537 | 2.5 |
+| E (nearest)         | 65.3 | 67.3 | 1.2 |  9 759 | 7.7 |
+| F (`std::lerp`)     | 49.0 | 48.2 | 1.2 | 16 106 | 14.5 |
+| G (nearest + fma)   | 82.4 | 84.7 | 66.0 | 7 954 | 9.3 (7.9 with hardware FMA) |
+| **H (compensated)** | **99.9** | **99.93** | **99.4** | **0** | 14.5 (10.0 with hardware FMA) |
+| W (wider type)      | **100.0** | 88.4 | 1.8 | 18 | 10.3 |
+
+The same probe, `y` printed for 32 successive `x` (steps in ulps of `y`,
+segment `(-3,2)-(5,-7)`, double, `x` near `x1`):
+
+```
+A    0 -2  0 -2 -2  0 -2  0 -2  0 -2  0 -2 -2  0 -2  0 -2 ...   <- stairs of 2 ulps
+H   -1 -1 -1 -1 -1 -1 -1 -1 -2 -1 -1 -1 -1 -1 -1 -2 -1 -1 ...
+CR  -1 -1 -1 -1 -1 -1 -1 -1 -2 -1 -1 -1 -1 -1 -1 -2 -1 -1 ...
+```
+
+and for `y = 2x` on `[-1,3]` with `x` starting at 2^-10 (CR moves by 1 ulp at
+every step). Every formula except H and W stays flat for about 1000
+consecutive `x`, then jumps by about 1000 ulps:
+
+```
+A..G  0  0  0  0  0  0  0 ...
+H, W  1  1  1  1  1  1  1 ...
+```
+
+Stairs have three distinct causes:
+
+1. **The rounding grid of y.** If a one-ulp move of `x` changes the exact `y`
+   by less than one ulp of `y`, then even CR is a staircase (case `yoff`).
+   No formula can avoid this; only a wider type for `y` can.
+2. **The term added to the anchor is coarser than y.** In `ya + p`, `p` is
+   rounded to its own grid. When `|p| > |y|` (the anchor is far away, or `y`
+   crosses 0 between the anchor and `x`), that grid is coarser than the grid
+   of `y`, and `y` moves in steps of 2, 4, ... ulps. Anchoring on the nearest
+   bound (E, G) halves `|p|` at most, so it does not remove this cause.
+3. **`x - xa` drops bits of `x`.** When `|x - xa|` is much larger than `|x|`
+   (an interval containing 0, with `x` near 0), consecutive `x` give the same
+   `x - xa`, so `y` stays flat for up to 1000 steps and then jumps.
+
+H removes causes 2 and 3. Its error terms are computed exactly with TwoSum
+and fma, and the result is rounded only once, which gives double-length
+accuracy (about 106 bits for double). The only steps where it still differs
+from CR are at `y≈0`, where heavy cancellation leaves too few correct bits
+relative to a tiny `y`. W works for the same reason, but an 80-bit
+`long double` only adds 11 bits to a double. That is plenty for `float`
+data computed in `double`, but not for double data near `y≈0`.
+
+Guarantees and caveats for H:
+- It is exact at both bounds (checked in t01) and preserves constants.
+- No backward step was observed (t02, t06), but monotonicity is not proven.
+- It needs strict IEEE evaluation. **`-ffast-math` destroys it**: the compiler
+  simplifies the TwoSum error terms to 0, and H drops to 69 % of steps equal
+  to CR, which is no better than E. `-ffp-contract=fast` does no harm.
 
 ### 1. The answer depends on which bound the formula is anchored on
 
@@ -129,6 +202,11 @@ else.
 
 ## Practical takeaways
 
+- **For smooth `y` over successive `x` (no extra stairs), use H.** For `float`
+  data, W (compute in `double`, round once) is simpler and just as good. Both
+  cost about 3-5× a plain formula (roughly 10-15 ns instead of 2.5 ns).
+- Never compile H with `-ffast-math`. If needed, isolate it in a translation
+  unit compiled with `-fno-fast-math`.
 - To get exact values at the bounds of an interval, use E (nearest bound) or
   F (`std::lerp`).
 - For monotonicity, avoid E and C. A, B, D and F are safe under strict

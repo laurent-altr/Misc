@@ -1,0 +1,12 @@
+formula,ns_per_call
+left,6.03937
+left_slope,6.05439
+left_t,6.31878
+right,6.14867
+weights,6.5104
+fma,9.29943
+nearest,14.941
+std::lerp,28.305
+nearest_fma,17.9238
+nearest_comp,33.1569
+nearest_wide,19.1611
