@@ -56,6 +56,18 @@ template <class T> T nearest_fma(T x0, T x1, T y0, T y1, T x) {
     return (x - x0 < x1 - x) ? std::fma(x - x0, s, y0) : std::fma(x - x1, s, y1);
 }
 
+// Error-free transformations need every operation rounded separately. With
+// FMA contraction enabled (-ffp-contract=fast and an FMA-capable -march), gcc
+// fuses a product into the following addition, so the error term computed from
+// the rounded product no longer matches. This attribute disables contraction
+// for the function and everything inlined into it. It does NOT protect against
+// -ffast-math: that needs a separate translation unit compiled without it.
+#if defined(__GNUC__) && !defined(__clang__)
+#define INTERP_NO_CONTRACT __attribute__((optimize("fp-contract=off")))
+#else
+#define INTERP_NO_CONTRACT
+#endif
+
 // Error-free transformation: a + b == s + e exactly.
 template <class T> void two_sum(T a, T b, T& s, T& e) {
     s = a + b;
@@ -66,7 +78,7 @@ template <class T> void two_sum(T a, T b, T& s, T& e) {
 // H: nearest bound, compensated. Keeps the rounding errors of dx, dy, of the
 // slope, of x - xa (bits of x lost when |x - xa| >> |x|) and of the product,
 // and adds them back before the final rounding (double-length accuracy).
-template <class T> T nearest_comp(T x0, T x1, T y0, T y1, T x) {
+template <class T> INTERP_NO_CONTRACT T nearest_comp(T x0, T x1, T y0, T y1, T x) {
     const bool left_side = x - x0 < x1 - x;
     const T xa = left_side ? x0 : x1, ya = left_side ? y0 : y1;
     T dx, dx_e, dy, dy_e;
@@ -79,6 +91,45 @@ template <class T> T nearest_comp(T x0, T x1, T y0, T y1, T x) {
     two_sum(x, -xa, h, h_e);                            // x - xa == h + h_e exactly
     const T p = h * s;
     const T p_e = std::fma(h, s, -p);                   // h * s == p + p_e exactly
+    T sum, sum_e;
+    two_sum(ya, p, sum, sum_e);
+    return sum + (sum_e + (p_e + (h * s_lo + h_e * s)));
+}
+
+// Error-free product without fma (Dekker): a * b == p + e exactly, using
+// Veltkamp's split of each factor into two half-width parts. Valid while
+// |a|, |b| stay far from the overflow threshold.
+template <class T> void split(T a, T& hi, T& lo) {
+    constexpr T factor = std::is_same_v<T, float> ? T(4097) : T(134217729);  // 2^ceil(p/2) + 1
+    const T c = factor * a;
+    hi = c - (c - a);
+    lo = a - hi;
+}
+
+template <class T> void two_prod(T a, T b, T& p, T& e) {
+    p = a * b;
+    T ah, al, bh, bl;
+    split(a, ah, al);
+    split(b, bh, bl);
+    e = ((ah * bh - p) + ah * bl + al * bh) + al * bl;
+}
+
+// H': same as H without fma: the exact products use two_prod instead.
+template <class T> INTERP_NO_CONTRACT T nearest_comp_nofma(T x0, T x1, T y0, T y1, T x) {
+    const bool left_side = x - x0 < x1 - x;
+    const T xa = left_side ? x0 : x1, ya = left_side ? y0 : y1;
+    T dx, dx_e, dy, dy_e;
+    two_sum(x1, -x0, dx, dx_e);
+    two_sum(y1, -y0, dy, dy_e);
+    const T s = dy / dx;
+    T q, q_e;
+    two_prod(s, dx, q, q_e);                            // s * dx == q + q_e
+    const T r = (dy - q) - q_e;                         // dy - s * dx, exact
+    const T s_lo = (r + dy_e - s * dx_e) / dx;
+    T h, h_e;
+    two_sum(x, -xa, h, h_e);
+    T p, p_e;
+    two_prod(h, s, p, p_e);
     T sum, sum_e;
     two_sum(ya, p, sum, sum_e);
     return sum + (sum_e + (p_e + (h * s_lo + h_e * s)));
@@ -101,7 +152,7 @@ template <class T> struct Formula {
     Fn<T> f;
 };
 
-template <class T> std::array<Formula<T>, 11> formulas() {
+template <class T> std::array<Formula<T>, 12> formulas() {
     return {{
         {"A",   "left",       left<T>},
         {"A'",  "left_slope", left_slope<T>},
@@ -113,6 +164,7 @@ template <class T> std::array<Formula<T>, 11> formulas() {
         {"F",   "std::lerp",  std_lerp<T>},
         {"G",   "nearest_fma",  nearest_fma<T>},
         {"H",   "nearest_comp", nearest_comp<T>},
+        {"H'",  "nearest_comp_nofma", nearest_comp_nofma<T>},
         {"W",   "nearest_wide", nearest_wide<T>},
     }};
 }

@@ -1,0 +1,23 @@
+t09: error-free transformations under the current compiler flags
+
+=== float ===
+check          failures       e == 0
+------------------------------------
+two_sum         1943733      2097152
+two_prod        2097150      2097152
+H vs H'          163991            -
+(2097152 random cases each)
+  CHECK FAILED: two_sum exact (float)
+  CHECK FAILED: two_prod exact (float)
+
+=== double ===
+check          failures       e == 0
+------------------------------------
+two_sum         1792439      2097152
+two_prod        2097152      2097152
+H vs H'          163083            -
+(2097152 random cases each)
+  CHECK FAILED: two_sum exact (double)
+  CHECK FAILED: two_prod exact (double)
+
+4 guaranteed-property check(s) FAILED

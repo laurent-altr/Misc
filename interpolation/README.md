@@ -16,7 +16,7 @@ jumps that the exact segment does not have. The answer is formula **H**
 
 ```
 make              # build + run the strict configuration (-O2 -ffp-contract=off)
-make run CFG=fast # one configuration: strict, contract, fast, O0 (x87 if -m32 works)
+make run CFG=fast # one configuration: strict, contract, fast, O0, noinline (x87 if -m32 works)
 make matrix       # every configuration, then list the CSVs that differ from strict
 make clean
 ```
@@ -25,7 +25,7 @@ This requires g++ with C++20 and libquadmath. The reference values are
 computed in `__float128`. Each test prints tables to stdout. The output is
 also saved as `results/<cfg>/<test>.txt` and as CSV files. A test exits
 non-zero only when a *guaranteed* property is violated. `make matrix` takes
-about 8 minutes.
+about 9 minutes. The `fast` configuration is expected to fail t09 (see below).
 
 ## Formulas
 
@@ -44,6 +44,7 @@ Every formula below is written for `x` in `[x0,x1]`, with `dx = x1-x0` and
 | F   | `std::lerp(y0, y1, t)` |
 | G   | nearest bound, `fma(x-xa, dy/dx, ya)` |
 | H   | nearest bound, compensated: the rounding errors of `dx`, `dy`, the slope, `x-xa` and the product are computed exactly (TwoSum / fma) and added back before the last rounding |
+| H'  | H without fma: exact products by Dekker's two_prod (Veltkamp split); bit-identical to H |
 | W   | E computed in a wider type (`double` for float data, 80-bit `long double` for double data), rounded once |
 | CR  | correctly rounded exact value (the best achievable; baseline only) |
 
@@ -59,6 +60,7 @@ Every formula below is written for `x` in `[x0,x1]`, with `dx = x1-x0` and
 | `t06_anchor_switch` | monotonicity around the switch point of E, G, H, W at mid-interval |
 | `t07_stairs` | **goal**: runs of 2048 consecutive `x` near t≈0, t≈0.5, t≈1, x≈0, y≈0 and random t; steps compared with the CR steps, and the step sequences printed for a few cases |
 | `t08_speed` | ns per call |
+| `t09_error_free` | `two_sum` / `two_prod` exact under the current flags (vs `__float128`); H vs H' bit for bit |
 
 Errors are expressed in ulps of `max(|y0|,|y1|)`. Near a zero crossing, the
 ulp of `y` itself becomes tiny, so relative errors explode for every formula
@@ -200,12 +202,54 @@ exact. With a large `y` offset (`yoff`), every formula except C returns the
 correctly rounded value. There the quantization of `y` dominates everything
 else.
 
+### H without fma (H'), and what the compiler may break (t09)
+
+H' replaces each `fma` by Dekker's exact product: each factor is split into
+two half-width parts (`c = (2^27+1)*a; hi = c - (c - a); lo = a - hi`, with
+2^12+1 for float), and the error of `a*b` is rebuilt from the partial
+products. In every correct build, H' returns exactly the same bits as H on all
+probes, at the same cost without hardware FMA (about 15 ns).
+
+Can `two_sum` / `two_prod` be inlined? **Yes.** Without `-ffast-math`, gcc
+never reassociates floating-point operations, and inlining does not change
+the result: the `strict`, `O0` and `noinline` builds give identical results,
+and all 2×2^21 error-free transformations are exact. What can break them is a
+**flag**, not inlining:
+
+| build | two_sum / two_prod exact | H' steps = CR |
+|-------|--------------------------|---------------|
+| strict, O0, noinline | yes | 99.9 % |
+| `-march=native -ffp-contract=fast`, without protection | yes (in isolation) | **78 %, with 195 backward steps** |
+| same, with `INTERP_NO_CONTRACT` (current code) | yes | 99.9 % |
+| `-ffast-math` | **no**: error terms simplified to 0 | 68 % |
+
+- **FMA contraction.** Each helper stays exact on its own. But once they are
+  inlined together, gcc fuses the product `p = h*s` into the next addition
+  (`ya + p`), which then uses the *exact* product while the error term assumes
+  the *rounded* `p`. The fix is to disable contraction for the function:
+  `__attribute__((optimize("fp-contract=off")))`. Everything inlined into it
+  inherits this. The header applies it to H and H' through the
+  `INTERP_NO_CONTRACT` macro. Compiling with `-ffp-contract=off` works too.
+- **`-ffast-math`.** It allows reassociation, so `(a - (s - bb)) + (b - bb)`
+  is simplified to 0. No function attribute fixes this: `optimize("no-fast-math")`
+  and the individual `no-associative-math`… options were tried with gcc 13,
+  and neither works. The only reliable option is to put the function in its
+  own `.cpp` file compiled without `-ffast-math` (verified). It is then called
+  normally, but it cannot be inlined into fast-math code.
+- **x87** (`-m32 -mfpmath=387`) would also break them, because intermediate
+  results are kept with extra precision. This could not be tested here. Use
+  SSE2 (`-mfpmath=sse`), which is the default on x86-64.
+- Veltkamp's split overflows for `|a|` above about 2^996 (double) or 2^115
+  (float).
+
 ## Practical takeaways
 
 - **For smooth `y` over successive `x` (no extra stairs), use H.** For `float`
   data, W (compute in `double`, round once) is simpler and just as good. Both
   cost about 3-5× a plain formula (roughly 10-15 ns instead of 2.5 ns).
-- Never compile H with `-ffast-math`. If needed, isolate it in a translation
+- Without hardware FMA, use H' (same bits as H). Keep `INTERP_NO_CONTRACT` on
+  it so a later `-march=native` build cannot silently break it.
+- Never compile H or H' with `-ffast-math`. If needed, isolate it in a translation
   unit compiled with `-fno-fast-math`.
 - To get exact values at the bounds of an interval, use E (nearest bound) or
   F (`std::lerp`).

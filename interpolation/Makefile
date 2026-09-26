@@ -13,9 +13,10 @@ FLAGS_strict   := -O2 -ffp-contract=off
 FLAGS_contract := -O2 -march=native -ffp-contract=fast
 FLAGS_fast     := -O2 -ffast-math
 FLAGS_O0       := -O0 -ffp-contract=off
+FLAGS_noinline := -O2 -ffp-contract=off -fno-inline -fno-inline-small-functions
 FLAGS_x87      := -O2 -m32 -mfpmath=387 -ffp-contract=off
 
-CONFIGS  := strict contract fast O0 $(shell echo 'int main(){}' | $(CXX) -m32 -x c++ - -o /dev/null 2>/dev/null && echo x87)
+CONFIGS  := strict contract fast O0 noinline $(shell echo 'int main(){}' | $(CXX) -m32 -x c++ - -o /dev/null 2>/dev/null && echo x87)
 
 TESTS    := $(basename $(notdir $(wildcard tests/*.cpp)))
 HEADERS  := $(wildcard include/*.hpp)

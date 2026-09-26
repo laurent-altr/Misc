@@ -21,7 +21,7 @@ template <class T> void run() {
     bool shown = false;
     for (const auto& fm : interp::formulas<T>()) {
         const std::string id = fm.id;
-        if (id != "A" && id != "B" && id != "E" && id != "G" && id != "H" && id != "W") continue;
+        if (id != "A" && id != "B" && id != "E" && id != "G" && id != "H" && id != "H'" && id != "W") continue;
         long bad_segs = 0, viol = 0;
         std::int64_t worst = 0;
         for (const auto& s : segs) {

@@ -1,0 +1,19 @@
+t09: error-free transformations under the current compiler flags
+
+=== float ===
+check          failures       e == 0
+------------------------------------
+two_sum               0       153419
+two_prod              0            2
+H vs H'               0            -
+(2097152 random cases each)
+
+=== double ===
+check          failures       e == 0
+------------------------------------
+two_sum               0       304713
+two_prod              0            0
+H vs H'               0            -
+(2097152 random cases each)
+
+all guaranteed-property checks passed
