@@ -1,0 +1,4 @@
+formula,scalar_ns,chunked_ns,update_ns
+naive,3.68634,4.16138,3.1821
+naive_slope,0,3.64227,3.1821
+comp_pre,12.7735,9.0374,3.1821

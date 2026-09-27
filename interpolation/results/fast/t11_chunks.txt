@@ -1,0 +1,21 @@
+t11: chunks of 128 lanes with per-lane interval guesses
+
+=== float ===
+lanes changing interval per chunk: 2.3 % (0.000 % by more than one)
+formula          scalar      chunked     (update)
+-------------------------------------------------
+naive              2.44         2.86         1.68
+naive, slope            -         2.39         1.68
+H' (pre)           6.10         4.00         1.68
+(ns per point, 512 chunks of 128 lanes)
+
+=== double ===
+lanes changing interval per chunk: 2.3 % (0.000 % by more than one)
+formula          scalar      chunked     (update)
+-------------------------------------------------
+naive              1.46         1.79         1.20
+naive, slope            -         1.59         1.20
+H' (pre)           4.55         2.19         1.20
+(ns per point, 512 chunks of 128 lanes)
+
+all guaranteed-property checks passed

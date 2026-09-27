@@ -61,6 +61,7 @@ Every formula below is written for `x` in `[x0,x1]`, with `dx = x1-x0` and
 | `t07_stairs` | **goal**: runs of 2048 consecutive `x` near t≈0, t≈0.5, t≈1, x≈0, y≈0 and random t; steps compared with the CR steps, and the step sequences printed for a few cases |
 | `t08_speed` | ns per call |
 | `t10_naive_vs_comp` | head-to-head A (naive) vs H': quality summary and speed in three usage patterns |
+| `t11_chunks` | chunks of 128 lanes, each with its own interval guess: one lane at a time vs vectorized chunk loops (`include/chunk.hpp`) |
 | `t09_error_free` | `two_sum` / `two_prod` exact under the current flags (vs `__float128`); H vs H' bit for bit |
 
 Errors are expressed in ulps of `max(|y0|,|y1|)`. Near a zero crossing, the
@@ -306,6 +307,59 @@ the slope and its correction precomputed per segment (`make_comp_seg` /
   it, the times are identical. It can be disabled with
   `-DINTERP_NO_CONTRACT=` in a build that already uses `-ffp-contract=off`.
 
+### Chunks of 128 lanes with per-lane interval guesses (t11)
+
+This is the target application's pattern. Each call handles 128 values of
+`x`, and each lane keeps its own current interval as the initial guess for
+the next call. Every lane moves by a small random step per chunk, so about
+2.3 % of lanes change interval per call, and never by more than one.
+`include/chunk.hpp` splits the work into two loops that gcc vectorizes with
+AVX2 gathers (4 doubles or 8 floats at a time):
+
+```cpp
+auto tab = chunk::make_table(X, Y);          // once: knots + per-interval data (structure of arrays)
+chunk::update(tab, x, k, 128);               // move each k[i] to the interval containing x[i]
+chunk::eval_comp(tab, x, k, y, 128);         // H' for all lanes (same bits as eval_comp_seg)
+```
+
+ns per point, median of 5 runs:
+
+| formula | build | one lane at a time | chunked | of which `update` |
+|---------|-------|-------------------:|--------:|------------------:|
+| naive, double | `-O2` | 1.9 | 2.0 | 1.5 |
+| | `-O3 -march=native` | 1.8 | 1.9 | 1.2 |
+| naive with precomputed slope, double | `-O3 -march=native` | - | 1.7 | 1.2 |
+| **H', double** | `-O2` | 6.8 | 5.8 | 1.5 |
+| | `-O3 -march=native` | 6.9 | **3.9** | 1.2 |
+| naive, float | `-O3 -march=native` | 1.9 | 1.3 | 0.7 |
+| **H', float** | `-O3 -march=native` | 7.4 | **3.1** | 0.7 |
+
+- With `-O3 -march=native`, chunking halves the cost of H' (6.9 → 3.9 ns in
+  double, 7.4 → 3.1 ns in float). The difference to the naive formula becomes
+  **about +2 ns per point (2.1× in double, 2.3× in float)**. At `-O2`, gcc 13
+  vectorizes only cheap loops, and chunking gains little.
+- One lane at a time, H' is slower here (6.9 ns) than in t10's hunt pattern
+  (3.3 ns). The 128 lanes sit at random places in the table, so the
+  nearest-bound choice changes unpredictably from one point to the next, and
+  the branch is mispredicted about half the time. The vectorized loop has no
+  branch.
+- The chunked naive formula gains nothing in double. Its cost is dominated by
+  `update` (about 1.2 ns), whose loop runs a second full pass whenever any
+  lane moved, which happens in almost every chunk.
+- Vectorization is fragile with gcc 13. Three things silently prevented it,
+  each reported as "no vectype for stmt" by `-fopt-info-vec-missed`:
+  - a conditional load (`left ? Y[j] : Y[j+1]`). The fix is to compute the
+    index `j + !left` and load once.
+  - calling an inlined per-lane helper function or lambda inside the loop.
+    The fix is to write the loop body out in full.
+  - mixing integer tests on the index with floating-point comparisons in one
+    loop that also computes the formula. This is why an "optimistic" single
+    loop (evaluate, then fix the lanes that moved) was not faster, and was
+    dropped.
+
+  Check `-fopt-info-vec` after any change to these loops. The
+  `INTERP_NO_CONTRACT` attribute does not prevent vectorization.
+
 ## Practical takeaways
 
 - **For smooth `y` over successive `x` (no extra stairs), use H.** For `float`
@@ -316,6 +370,9 @@ the slope and its correction precomputed per segment (`make_comp_seg` /
   stay in the same interval (a good initial guess), precompute the segment
   data (`make_comp_seg` once per interval, then `eval_comp_seg`): about +2 ns
   per call.
+- For chunks of many `x` with per-lane interval guesses, use
+  `chunk::update` + `chunk::eval_comp` compiled with `-O3 -march=native`:
+  about 3-4 ns per point, against 1.3-1.9 ns for the naive formula.
 - Without hardware FMA, use H' (same bits as H). Keep `INTERP_NO_CONTRACT` on
   it so a later `-march=native` build cannot silently break it.
 - Never compile H or H' with `-ffast-math`. If needed, isolate it in a translation
