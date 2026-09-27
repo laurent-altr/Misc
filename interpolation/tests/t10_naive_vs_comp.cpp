@@ -148,6 +148,38 @@ __attribute__((noinline)) void loop_search(const T* __restrict X, const T* __res
     for (int i = 0; i < n; ++i) y[i] = Y[find(X, nk, q[i])];
 }
 
+// 2b. Hunt: queries move a little each time; the interval is found by walking
+// from the previous one (cheap, as with a good initial guess).
+template <class T> std::size_t hunt(const T* X, int n, T x, std::size_t k) {
+    while (k > 0 && x < X[k]) --k;
+    while (k + 2 < std::size_t(n) && x >= X[k + 1]) ++k;
+    return k;
+}
+template <class T, class F>
+__attribute__((noinline)) void loop_hunt(const T* __restrict X, const T* __restrict Y, int nk, const T* __restrict q,
+                                         T* __restrict y, int n, F f) {
+    std::size_t k = 0;
+    for (int i = 0; i < n; ++i) {
+        k = hunt(X, nk, q[i], k);
+        y[i] = f(X[k], X[k + 1], Y[k], Y[k + 1], q[i]);
+    }
+}
+template <class T>
+__attribute__((noinline)) void loop_hunt_pre(const T* __restrict X, const interp::CompSeg<T>* __restrict pre, int nk,
+                                             const T* __restrict q, T* __restrict y, int n) {
+    std::size_t k = 0;
+    for (int i = 0; i < n; ++i) {
+        k = hunt(X, nk, q[i], k);
+        y[i] = interp::eval_comp_seg(pre[k], q[i]);
+    }
+}
+template <class T>
+__attribute__((noinline)) void loop_hunt_only(const T* __restrict X, const T* __restrict Y, int nk,
+                                              const T* __restrict q, T* __restrict y, int n) {
+    std::size_t k = 0;
+    for (int i = 0; i < n; ++i) y[i] = Y[k = hunt(X, nk, q[i], k)];
+}
+
 // 3. Sweep: one segment, an array of x -> an array of y.
 template <class T, class F>
 __attribute__((noinline)) void loop_sweep(T a0, T a1, T b0, T b1, const T* __restrict x, T* __restrict y, int n, F f) {
@@ -182,6 +214,21 @@ template <class T> void print_speed() {
     const double table_pre = best_ns([&] { loop_table_pre(X.data(), pre.data(), nk, q.data(), out.data(), N); }, N);
     const double search = best_ns([&] { loop_search(X.data(), Y.data(), nk, q.data(), out.data(), N); }, N);
 
+    // Random walk over the table: steps of up to 5 % of the mean knot spacing,
+    // so about one query in 20 moves to a neighbouring interval.
+    std::vector<T> w(N);
+    {
+        const double span = double(X.back()), mean = span / (nk - 1);
+        double x = span / 2;
+        for (auto& e : w) {
+            x = std::clamp(x + (u(g) - 0.5) * 0.1 * mean, 0.0, span * 0.999);
+            e = T(x);
+        }
+    }
+    auto walk = [&](auto f) { return best_ns([&] { loop_hunt(X.data(), Y.data(), nk, w.data(), out.data(), N, f); }, N); };
+    const double walk_pre = best_ns([&] { loop_hunt_pre(X.data(), pre.data(), nk, w.data(), out.data(), N); }, N);
+    const double walk_only = best_ns([&] { loop_hunt_only(X.data(), Y.data(), nk, w.data(), out.data(), N); }, N);
+
     std::vector<T> xs(N);
     const T a0 = T(1.3), a1 = T(7.9), b0 = T(-4.2), b1 = T(11.7);
     for (int i = 0; i < N; ++i) xs[i] = T(a0 + (a1 - a0) * i / N);
@@ -198,8 +245,10 @@ template <class T> void print_speed() {
     };
     line("independent", indep(Naive{}), indep(Comp{}), -1);
     line("table", table(Naive{}), table(Comp{}), table_pre);
+    line("hunt", walk(Naive{}), walk(Comp{}), walk_pre);
     line("sweep", sweep(Naive{}), sweep(Comp{}), sweep_pre);
-    std::printf("(ns per call; the table pattern includes a binary search costing %.2f ns alone)\n", search);
+    std::printf("(ns per call; the search alone costs %.2f ns in the table pattern, %.2f ns in the hunt pattern)\n",
+                search, walk_only);
 }
 
 template <class T> void check_pre(report::Checks& checks) {

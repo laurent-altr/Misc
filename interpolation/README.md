@@ -261,22 +261,33 @@ consecutive `x` (at a random `t` and near `x1`), plus 1000 random tables.
 | exact at `x1` | 62.3 % | 100 % | 84.4 % | 100 % |
 | knots where the left interval misses `Y[k]` | 37.5 % | 0 % | 15.3 % | 0 % |
 
-Speed in ns per call, on a 2.1 GHz Xeon. Each loop is an out-of-line loop
+Speed in ns per call, on a 2.1 GHz Xeon (double; repeated runs vary by
+about ±0.5 ns for the small values and ±10 ns for the table pattern). Each loop is an out-of-line loop
 over plain arrays, so gcc may inline and vectorize the formula. Hp is H' with
 the slope and its correction precomputed per segment (`make_comp_seg` /
 `eval_comp_seg`, same bits as H').
 
 | pattern | build | A | H' | Hp | H'/A |
 |---------|-------|--:|---:|---:|-----:|
-| independent (new segment and `x` each call) | `-O2` | 1.1 | 11.3 | - | 10× |
-| | `-O3 -march=native` | 1.1 | 10.2 | - | 9× |
-| sweep (one segment, array of `x`) | `-O2` | 1.1 | 9.0 | 3.8 | 8× |
-| | `-O3 -march=native` | 0.54 | 1.04 | 1.12 | **2×** |
-| table (1024 knots, binary search + interpolation) | `-O2` | 56 | 65 | 58 | 1.2× |
-| | `-O3 -march=native` | 49 | 58 | 65 | 1.2× |
+| independent (new segment and `x` each call) | `-O2` | 0.95 | 10.0 | - | 10× |
+| | `-O3 -march=native` | 0.95 | 8.9 | - | 9× |
+| **hunt** (small moves, interval found from the previous one) | `-O2` | 1.5 | 9.0 | **3.4** | 6× (Hp: 2.3×) |
+| | `-O3 -march=native` | 1.2 | 7.0 | **3.3** | 6× (Hp: 2.8×) |
+| sweep (one segment, array of `x`) | `-O2` | 1.1 | 8.8 | 3.0 | 8× |
+| | `-O3 -march=native` | 0.48 | 0.95 | 0.99 | **2×** |
+| table (1024 knots, binary search + interpolation) | `-O2` | 55 | 57 | 54 | 1.0× |
+| | `-O3 -march=native` | 47 | 55 | 54 | 1.2× |
 
 (double; float is similar. `results/<cfg>/t10_naive_vs_comp.txt` has both.)
 
+- **Hunt (a good initial guess of the interval):** the search costs about
+  1 ns, so the formula dominates. The loop cannot be vectorized, because each
+  search depends on the previous one. Hp is the right choice here: the
+  division-free per-call part costs about 3.3 ns, against 1.2-1.5 ns for the
+  naive formula, so about **+2 ns per call (2.3-2.8×)**. Plain H' recomputes
+  the slope (2 divisions) at every call and costs 7-9 ns. The split of the
+  slope used by the exact product is also precomputed in `CompSeg`. The gain is
+  within noise, but it costs nothing.
 - **Independent calls:** H' costs about 10 ns more. Most of it is the
   arithmetic: 2 divisions and about 45 other operations, against 1 division
   and 3 operations for A. The unpredictable choice of the nearest bound adds
@@ -289,8 +300,8 @@ the slope and its correction precomputed per segment (`make_comp_seg` /
   no vectorization. Use `-O3`, or force inlining.
 - **Table:** the binary search (about 55 ns with random queries) dominates, so
   H' adds only about 10 ns (+20 %). Precomputing the segment data (Hp) removes
-  the divisions but makes no reliable difference here. It pays off only in
-  scalar sweeps at `-O2` (3.8 against 9 ns). Timings in this pattern vary by ±10 ns between runs.
+  the divisions but makes no reliable difference here. It pays off in scalar
+  loops: hunt (3.3 against 7-9 ns) and sweeps at `-O2` (3.0 against 8.8 ns). Timings in this pattern vary by ±10 ns between runs.
 - The `INTERP_NO_CONTRACT` attribute does not change speed: with or without
   it, the times are identical. It can be disabled with
   `-DINTERP_NO_CONTRACT=` in a build that already uses `-ffp-contract=off`.
@@ -301,8 +312,10 @@ the slope and its correction precomputed per segment (`make_comp_seg` /
   data, W (compute in `double`, round once) is simpler and just as good. Both
   cost about 3-5× a plain formula (roughly 10-15 ns instead of 2.5 ns).
 - Cost of H' against the naive formula: about +10 ns per isolated call, 2×
-  in a vectorized loop at `-O3 -march=native`, and +20 % when a table search
-  is involved.
+  in a vectorized loop at `-O3 -march=native`. When successive queries mostly
+  stay in the same interval (a good initial guess), precompute the segment
+  data (`make_comp_seg` once per interval, then `eval_comp_seg`): about +2 ns
+  per call.
 - Without hardware FMA, use H' (same bits as H). Keep `INTERP_NO_CONTRACT` on
   it so a later `-march=native` build cannot silently break it.
 - Never compile H or H' with `-ffast-math`. If needed, isolate it in a translation

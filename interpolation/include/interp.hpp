@@ -141,6 +141,7 @@ template <class T> INTERP_NO_CONTRACT T nearest_comp_nofma(T x0, T x1, T y0, T y
 // and its correction term are computed once. Same bits as H'.
 template <class T> struct CompSeg {
     T x0, x1, y0, y1, s, s_lo;
+    T s_hi_half, s_lo_half;  // Veltkamp split of s, for two_prod
 };
 
 template <class T> INTERP_NO_CONTRACT CompSeg<T> make_comp_seg(T x0, T x1, T y0, T y1) {
@@ -150,15 +151,20 @@ template <class T> INTERP_NO_CONTRACT CompSeg<T> make_comp_seg(T x0, T x1, T y0,
     const T s = dy / dx;
     two_prod(s, dx, q, q_e);
     const T r = (dy - q) - q_e;
-    return {x0, x1, y0, y1, s, (r + dy_e - s * dx_e) / dx};
+    T sh, sl;
+    split(s, sh, sl);
+    return {x0, x1, y0, y1, s, (r + dy_e - s * dx_e) / dx, sh, sl};
 }
 
 template <class T> INTERP_NO_CONTRACT T eval_comp_seg(const CompSeg<T>& g, T x) {
     const bool left_side = x - g.x0 < g.x1 - x;
     const T xa = left_side ? g.x0 : g.x1, ya = left_side ? g.y0 : g.y1;
-    T h, h_e, p, p_e, sum, sum_e;
+    T h, h_e, hh, hl, sum, sum_e;
     two_sum(x, -xa, h, h_e);
-    two_prod(h, g.s, p, p_e);
+    // two_prod(h, g.s) with the split of s taken from the segment.
+    const T p = h * g.s;
+    split(h, hh, hl);
+    const T p_e = ((hh * g.s_hi_half - p) + hh * g.s_lo_half + hl * g.s_hi_half) + hl * g.s_lo_half;
     two_sum(ya, p, sum, sum_e);
     return sum + (sum_e + (p_e + (h * g.s_lo + h_e * g.s)));
 }
