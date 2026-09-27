@@ -6,7 +6,7 @@ behaviour: the "truth" is the exact segment through the stored points, and
 approximating the underlying function is out of scope. The main question is
 how the result moves when `x` moves by one ulp (ε), and whether that depends
 on the bound the formula is anchored on. See [PLAN.md](PLAN.md) for the
-design.
+design, and [CUDA_DESIGN.md](CUDA_DESIGN.md) for the design of a GPU version.
 
 **Goal: no stairs.** When `y` is printed for successive representable `x`,
 it should follow the correctly rounded values, without flat runs followed by
