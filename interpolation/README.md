@@ -64,6 +64,7 @@ Every formula below is written for `x` in `[x0,x1]`, with `dx = x1-x0` and
 | `t10_naive_vs_comp` | head-to-head A (naive) vs H': quality summary and speed in three usage patterns |
 | `t11_chunks` | chunks of 128 lanes, each with its own interval guess: one lane at a time vs vectorized chunk loops (`include/chunk.hpp`) |
 | `t12_chunk_opt` | optimizing L for chunks: per-lane cache vs table gathers, hardware FMA, gcc vs clang, AVX2 vs AVX-512 |
+| `t13_intrinsics` | hand-written AVX2 / AVX-512 intrinsics against compiler vectorization for cached L (x86 with AVX2 + FMA only) |
 | `t09_error_free` | `two_sum` / `two_prod` exact under the current flags (vs `__float128`); H vs H' bit for bit |
 
 Errors are expressed in ulps of `max(|y0|,|y1|)`. Near a zero crossing, the
@@ -420,6 +421,33 @@ naive formula.
 - A flag storing which bound the previous call used (for example a negative
   interval index meaning "right bound") is not needed: L always uses the left
   bound, with the same accuracy (see t11).
+
+**Hand-written intrinsics (t13).** The cached L with FMA was also written
+with `immintrin.h` intrinsics (AVX2, 4 doubles, and AVX-512, 8 doubles), with
+the same bits as the compiler version (checked). Refresh + evaluation, ns per
+point, double:
+
+| x speed | compiler | compiler, `-mprefer-vector-width=512` | AVX2 intrinsics | AVX-512 intrinsics |
+|---------|---------:|--------------------------------------:|----------------:|-------------------:|
+| slow, gcc 13 | 1.07 | **0.77** | 1.05 | 0.86 |
+| slow, clang 18 | 1.00 | **0.72** | 1.05 | 0.78 |
+| moving, gcc 13 | 2.33 | 1.93 | 1.94 | 1.70 |
+| moving, clang 18 | 2.19 | 1.67 | 1.46 | **1.16** |
+
+- For slowly changing `x`, intrinsics do not help. The compiler vectorizes
+  the evaluation as well as hand-written code, and slightly better with
+  512-bit vectors enabled (its loop handling is better than a plain loop of
+  intrinsics).
+- Intrinsics help only when many lanes change interval, and the gain is in
+  the refresh, not in the arithmetic: a comparison bit mask
+  (`_mm256_movemask_pd`) visits only the flagged lanes, instead of a scalar
+  scan of all 128 lanes (clang 1.2 → 0.6 ns).
+- Intrinsics do not protect against `-ffast-math` or FMA contraction:
+  gcc and clang treat them as ordinary vector operations. The same
+  `INTERP_STRICT_FP` / `INTERP_NO_CONTRACT` precautions apply.
+- The costs are portability (x86 only, separate AVX2 and AVX-512 code paths)
+  and maintenance. They are not worth it here. Enabling 512-bit vectors
+  through compiler flags gives the same or a better result.
 
 **Intel compilers (icpx) and clang.** icpx is built on LLVM and defaults to
 `-fp-model=fast`, which breaks the error-free transformations like
