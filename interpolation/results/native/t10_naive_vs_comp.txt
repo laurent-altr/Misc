@@ -31,19 +31,19 @@ knot mismatch       15.25%        0.00%
 === speed, float ===
 pattern     A (naive)         H'   Hp (pre)       H'/A       Hp/A
 -----------------------------------------------------------------
-independent       0.84      10.25          -      12.2x          -
-table           47.04      63.89      68.99       1.4x       1.5x
-hunt             1.18       6.68       3.86       5.7x       3.3x
-sweep            0.15       0.48       0.59       3.2x       3.9x
-(ns per call; the search alone costs 56.57 ns in the table pattern, 1.11 ns in the hunt pattern)
+independent       0.86      10.39          -      12.1x          -
+table           46.62      54.84      53.67       1.2x       1.2x
+hunt             1.18       6.70       5.34       5.7x       4.5x
+sweep            0.15       0.48       0.68       3.2x       4.5x
+(ns per call; the search alone costs 50.31 ns in the table pattern, 1.54 ns in the hunt pattern)
 
 === speed, double ===
 pattern     A (naive)         H'   Hp (pre)       H'/A       Hp/A
 -----------------------------------------------------------------
-independent       0.95       8.85          -       9.3x          -
-table           46.95      55.22      54.21       1.2x       1.2x
-hunt             1.19       7.04       3.27       5.9x       2.8x
-sweep            0.48       0.95       0.99       2.0x       2.1x
-(ns per call; the search alone costs 46.22 ns in the table pattern, 0.90 ns in the hunt pattern)
+independent       1.14      10.55          -       9.2x          -
+table           47.04      56.54      54.83       1.2x       1.2x
+hunt             1.18       7.03       3.93       5.9x       3.3x
+sweep            0.48       0.94       1.22       2.0x       2.5x
+(ns per call; the search alone costs 53.11 ns in the table pattern, 1.08 ns in the hunt pattern)
 
 all guaranteed-property checks passed

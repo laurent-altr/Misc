@@ -1,21 +1,43 @@
 t11: chunks of 128 lanes with per-lane interval guesses
 
-=== float ===
+=== float, moving x (steps up to 5.0 % of the knot spacing) ===
 lanes changing interval per chunk: 2.3 % (0.000 % by more than one)
 formula          scalar      chunked     (update)
 -------------------------------------------------
-naive              2.44         2.86         1.68
-naive, slope            -         2.39         1.68
-H' (pre)           6.10         4.00         1.68
+naive              1.84         2.21         1.27
+naive, slope            -         1.94         1.27
+H' (pre)           5.79         2.53         1.27
+L (pre)               -         2.15         1.27
 (ns per point, 512 chunks of 128 lanes)
 
-=== double ===
+=== double, moving x (steps up to 5.0 % of the knot spacing) ===
 lanes changing interval per chunk: 2.3 % (0.000 % by more than one)
 formula          scalar      chunked     (update)
 -------------------------------------------------
-naive              1.46         1.79         1.20
-naive, slope            -         1.59         1.20
-H' (pre)           4.55         2.19         1.20
+naive              1.89         2.05         1.53
+naive, slope            -         1.73         1.53
+H' (pre)           5.75         2.33         1.53
+L (pre)               -         2.14         1.53
+(ns per point, 512 chunks of 128 lanes)
+
+=== float, slow x (steps up to 0.2 % of the knot spacing) ===
+lanes changing interval per chunk: 0.1 % (0.000 % by more than one)
+formula          scalar      chunked     (update)
+-------------------------------------------------
+naive              1.46         1.47         0.65
+naive, slope            -         1.24         0.65
+H' (pre)           2.50         1.75         0.65
+L (pre)               -         1.44         0.65
+(ns per point, 512 chunks of 128 lanes)
+
+=== double, slow x (steps up to 0.2 % of the knot spacing) ===
+lanes changing interval per chunk: 0.1 % (0.000 % by more than one)
+formula          scalar      chunked     (update)
+-------------------------------------------------
+naive              1.47         1.41         0.80
+naive, slope            -         1.25         0.80
+H' (pre)           2.47         1.95         0.80
+L (pre)               -         1.61         0.80
 (ns per point, 512 chunks of 128 lanes)
 
 all guaranteed-property checks passed

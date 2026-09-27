@@ -100,4 +100,28 @@ INTERP_NO_CONTRACT void eval_comp(const Table<T>& t, const T* __restrict x, cons
     }
 }
 
+// Compensated formula anchored on the left knot (L): same accuracy as
+// eval_comp (the anchor does not matter once every rounding error is
+// compensated), without the nearest-knot choice: no compare, two fewer gathers.
+// Same bits as interp::left_comp_nofma.
+template <class T>
+INTERP_NO_CONTRACT void eval_comp_left(const Table<T>& t, const T* __restrict x, const int* __restrict k, T* __restrict y, int m) {
+    const T* __restrict X = t.x.data();
+    const T* __restrict Y = t.y.data();
+    const T* __restrict S = t.s.data();
+    const T* __restrict SL = t.s_lo.data();
+    const T* __restrict SH = t.sh.data();
+    const T* __restrict SS = t.sl.data();
+    for (int i = 0; i < m; ++i) {
+        const int j = k[i];
+        T h, h_e, hh, hl, sum, sum_e;
+        interp::two_sum(x[i], -X[j], h, h_e);
+        const T p = h * S[j];
+        interp::split(h, hh, hl);
+        const T p_e = ((hh * SH[j] - p) + hh * SS[j] + hl * SH[j]) + hl * SS[j];
+        interp::two_sum(Y[j], p, sum, sum_e);
+        y[i] = sum + (sum_e + (p_e + (h * SL[j] + h_e * S[j])));
+    }
+}
+
 }  // namespace chunk

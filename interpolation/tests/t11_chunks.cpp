@@ -59,10 +59,11 @@ __attribute__((noinline)) void scalar_comp(const chunk::Table<T>& t, const std::
 template <class T> __attribute__((noinline)) void do_update(const chunk::Table<T>& t, const T* x, int* k) { chunk::update(t, x, k, M); }
 template <class T> __attribute__((noinline)) void do_naive(const chunk::Table<T>& t, const T* x, const int* k, T* y) { chunk::eval_naive(t, x, k, y, M); }
 template <class T> __attribute__((noinline)) void do_slope(const chunk::Table<T>& t, const T* x, const int* k, T* y) { chunk::eval_naive_slope(t, x, k, y, M); }
+template <class T> __attribute__((noinline)) void do_comp_left(const chunk::Table<T>& t, const T* x, const int* k, T* y) { chunk::eval_comp_left(t, x, k, y, M); }
 template <class T> __attribute__((noinline)) void do_comp(const chunk::Table<T>& t, const T* x, const int* k, T* y) { chunk::eval_comp(t, x, k, y, M); }
 
-template <class T> void run(report::Checks& checks) {
-    std::printf("\n=== %s ===\n", fp::type_name<T>());
+template <class T> void run(report::Checks& checks, double step, const char* label) {
+    std::printf("\n=== %s, %s x (steps up to %.1f %% of the knot spacing) ===\n", fp::type_name<T>(), label, 100 * step);
     std::mt19937_64 g(21);
     std::uniform_real_distribution<double> u(0, 1), v(-100, 100);
     std::vector<T> X, Y;
@@ -71,7 +72,7 @@ template <class T> void run(report::Checks& checks) {
     std::vector<interp::CompSeg<T>> segs;
     for (int k = 0; k < tab.intervals(); ++k) segs.push_back(interp::make_comp_seg(X[k], X[k + 1], Y[k], Y[k + 1]));
 
-    // Each lane walks independently: steps of up to 5 % of the mean knot spacing.
+    // Each lane walks independently: steps of up to `step` times the mean knot spacing.
     const double span = double(X.back()), mean = span / (X.size() - 1);
     std::vector<T> xs(std::size_t(C) * M);
     std::vector<int> k0(M);
@@ -79,7 +80,7 @@ template <class T> void run(report::Checks& checks) {
         double x = u(g) * span * 0.999;
         k0[i] = int(std::upper_bound(X.begin(), X.end(), T(x)) - X.begin()) - 1;
         for (int c = 0; c < C; ++c) {
-            x = std::clamp(x + (u(g) - 0.5) * 0.1 * mean, 0.0, span * 0.999);
+            x = std::clamp(x + (u(g) - 0.5) * 2 * step * mean, 0.0, span * 0.999);
             xs[std::size_t(c) * M + i] = T(x);
         }
     }
@@ -109,6 +110,20 @@ template <class T> void run(report::Checks& checks) {
                     100.0 * passes_gt1 / P);
         checks.expect(bad_k == 0, std::string("update() finds the right interval (") + fp::type_name<T>() + ")");
         checks.expect(bad_y == 0, std::string("chunked H' identical to eval_comp_seg (") + fp::type_name<T>() + ")");
+        long bad_l = 0;
+        for (int c = 0; c < C; ++c) {
+            const T* xc = &xs[std::size_t(c) * M];
+            std::vector<int> kk(M);
+            for (int i = 0; i < M; ++i)
+                kk[i] = int(std::upper_bound(X.begin(), X.end() - 1, xc[i]) - X.begin()) - 1;
+            do_comp_left(tab, xc, kk.data(), &y2[std::size_t(c) * M]);
+            for (int i = 0; i < M; ++i) {
+                const int j = kk[i];
+                bad_l += fp::ordered(y2[std::size_t(c) * M + i]) !=
+                         fp::ordered(interp::left_comp_nofma(X[j], X[j + 1], Y[j], Y[j + 1], xc[i]));
+            }
+        }
+        checks.expect(bad_l == 0, std::string("chunked L identical to left_comp_nofma (") + fp::type_name<T>() + ")");
 
     }
 
@@ -124,23 +139,28 @@ template <class T> void run(report::Checks& checks) {
     const double c_naive = time([&](const T* x, int* kk, T* yy) { do_update(tab, x, kk); do_naive(tab, x, kk, yy); });
     const double c_slope = time([&](const T* x, int* kk, T* yy) { do_update(tab, x, kk); do_slope(tab, x, kk, yy); });
     const double c_comp = time([&](const T* x, int* kk, T* yy) { do_update(tab, x, kk); do_comp(tab, x, kk, yy); });
+    const double c_left = time([&](const T* x, int* kk, T* yy) { do_update(tab, x, kk); do_comp_left(tab, x, kk, yy); });
 
     report::Table t({"formula", "scalar", "chunked", "(update)"}, 12);
-    report::Csv csv(std::string("t11_chunks_") + fp::type_name<T>(), "formula,scalar_ns,chunked_ns,update_ns");
+    report::Csv csv(std::string("t11_chunks_") + fp::type_name<T>() + "_" + label, "formula,scalar_ns,chunked_ns,update_ns");
     auto f = [](double v) { return v > 0 ? report::num(v, "%.2f") : std::string("-"); };
     t.line({"naive", f(s_naive), f(c_naive), f(upd)});
     t.line({"naive, slope", "-", f(c_slope), f(upd)});
     t.line({"H' (pre)", f(s_comp), f(c_comp), f(upd)});
+    t.line({"L (pre)", "-", f(c_left), f(upd)});
     csv.row("naive", s_naive, c_naive, upd);
     csv.row("naive_slope", 0, c_slope, upd);
     csv.row("comp_pre", s_comp, c_comp, upd);
+    csv.row("comp_left_pre", 0, c_left, upd);
     std::printf("(ns per point, %d chunks of %d lanes)\n", C, M);
 }
 
 int main() {
     std::printf("t11: chunks of %d lanes with per-lane interval guesses\n", M);
     report::Checks checks;
-    run<float>(checks);
-    run<double>(checks);
+    for (auto [step, label] : {std::pair{0.05, "moving"}, {0.002, "slow"}}) {
+        run<float>(checks, step, label);
+        run<double>(checks, step, label);
+    }
     return checks.exit_code();
 }

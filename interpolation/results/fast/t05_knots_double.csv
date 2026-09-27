@@ -10,4 +10,5 @@ std::lerp,152000,0,0,0,76000,0
 nearest_fma,152000,0,0,0,76000,0
 nearest_comp,152000,0,0,0,76000,0
 nearest_comp_nofma,152000,0,0,0,76000,0
+left_comp_nofma,152000,12120,0,3,76000,1
 nearest_wide,152000,0,0,0,76000,0

@@ -32,6 +32,9 @@ unit,nearest_comp,t>0.9,71976,0,0,0
 unit,nearest_comp_nofma,all,262144,0,0,0
 unit,nearest_comp_nofma,t<0.1,72160,0,0,0
 unit,nearest_comp_nofma,t>0.9,71976,0,0,0
+unit,left_comp_nofma,all,262144,0,0,0
+unit,left_comp_nofma,t<0.1,72160,0,0,0
+unit,left_comp_nofma,t>0.9,71976,0,0,0
 unit,nearest_wide,all,262144,0,0,0
 unit,nearest_wide,t<0.1,72160,0,0,0
 unit,nearest_wide,t>0.9,71976,0,0,0
@@ -71,6 +74,9 @@ off,nearest_comp,t>0.9,12,0,0,0
 off,nearest_comp_nofma,all,128,0,0,0
 off,nearest_comp_nofma,t<0.1,13,0,0,0
 off,nearest_comp_nofma,t>0.9,12,0,0,0
+off,left_comp_nofma,all,128,0,0,0
+off,left_comp_nofma,t<0.1,13,0,0,0
+off,left_comp_nofma,t>0.9,12,0,0,0
 off,nearest_wide,all,128,0,0,0
 off,nearest_wide,t<0.1,13,0,0,0
 off,nearest_wide,t>0.9,12,0,0,0
@@ -110,6 +116,9 @@ yoff,nearest_comp,t>0.9,71976,1.42109e-14,1.42109e-14,0
 yoff,nearest_comp_nofma,all,262144,1.42109e-14,8.58213e-15,0
 yoff,nearest_comp_nofma,t<0.1,72160,1.77636e-15,9.66244e-17,0
 yoff,nearest_comp_nofma,t>0.9,71976,1.42109e-14,1.42109e-14,0
+yoff,left_comp_nofma,all,262144,1.42109e-14,8.58213e-15,0
+yoff,left_comp_nofma,t<0.1,72160,1.77636e-15,9.66244e-17,0
+yoff,left_comp_nofma,t>0.9,71976,1.42109e-14,1.42109e-14,0
 yoff,nearest_wide,all,262144,1.42109e-14,8.58213e-15,0
 yoff,nearest_wide,t<0.1,72160,1.77636e-15,9.66244e-17,0
 yoff,nearest_wide,t>0.9,71976,1.42109e-14,1.42109e-14,0
@@ -149,6 +158,9 @@ sign,nearest_comp,t>0.9,71976,0,0,0
 sign,nearest_comp_nofma,all,262144,0.496094,0.0120403,0
 sign,nearest_comp_nofma,t<0.1,72160,0.496094,0.0110145,0
 sign,nearest_comp_nofma,t>0.9,71976,0,0,0
+sign,left_comp_nofma,all,262144,0.496094,0.0120403,0
+sign,left_comp_nofma,t<0.1,72160,0.496094,0.0110145,0
+sign,left_comp_nofma,t>0.9,71976,0,0,0
 sign,nearest_wide,all,262144,0.496094,0.0120403,0
 sign,nearest_wide,t<0.1,72160,0.496094,0.0110145,0
 sign,nearest_wide,t>0.9,71976,0,0,0
@@ -188,6 +200,9 @@ flat,nearest_comp,t>0.9,71976,0,0,0
 flat,nearest_comp_nofma,all,262144,0,0,0
 flat,nearest_comp_nofma,t<0.1,72160,0,0,0
 flat,nearest_comp_nofma,t>0.9,71976,0,0,0
+flat,left_comp_nofma,all,262144,0,0,0
+flat,left_comp_nofma,t<0.1,72160,0,0,0
+flat,left_comp_nofma,t>0.9,71976,0,0,0
 flat,nearest_wide,all,262144,0,0,0
 flat,nearest_wide,t<0.1,72160,0,0,0
 flat,nearest_wide,t>0.9,71976,0,0,0
@@ -227,6 +242,9 @@ steep,nearest_comp,t>0.9,102,0,0,0
 steep,nearest_comp_nofma,all,1024,0,0,0
 steep,nearest_comp_nofma,t<0.1,103,0,0,0
 steep,nearest_comp_nofma,t>0.9,102,0,0,0
+steep,left_comp_nofma,all,1024,0,0,0
+steep,left_comp_nofma,t<0.1,103,0,0,0
+steep,left_comp_nofma,t>0.9,102,0,0,0
 steep,nearest_wide,all,1024,0,0,0
 steep,nearest_wide,t<0.1,103,0,0,0
 steep,nearest_wide,t>0.9,102,0,0,0
@@ -266,6 +284,9 @@ neg,nearest_comp,t>0.9,71976,0.875,0.218646,0
 neg,nearest_comp_nofma,all,262144,0.875,0.184701,0
 neg,nearest_comp_nofma,t<0.1,72160,0.1875,0.0936998,0
 neg,nearest_comp_nofma,t>0.9,71976,0.875,0.218646,0
+neg,left_comp_nofma,all,262144,0.875,0.184701,0
+neg,left_comp_nofma,t<0.1,72160,0.1875,0.0936998,0
+neg,left_comp_nofma,t>0.9,71976,0.875,0.218646,0
 neg,nearest_wide,all,262144,0.875,0.184698,0.00114441
 neg,nearest_wide,t<0.1,72160,0.1875,0.0936998,0
 neg,nearest_wide,t>0.9,71976,0.875,0.218646,0
@@ -305,6 +326,9 @@ odd,nearest_comp,t>0.9,71976,0.666667,0.446459,0
 odd,nearest_comp_nofma,all,262144,0.666667,0.335662,0
 odd,nearest_comp_nofma,t<0.1,72160,0.166667,0.111046,0
 odd,nearest_comp_nofma,t>0.9,71976,0.666667,0.446459,0
+odd,left_comp_nofma,all,262144,0.666667,0.335662,0
+odd,left_comp_nofma,t<0.1,72160,0.166667,0.111046,0
+odd,left_comp_nofma,t>0.9,71976,0.666667,0.446459,0
 odd,nearest_wide,all,262144,0.666667,0.335662,0
 odd,nearest_wide,t<0.1,72160,0.166667,0.111046,0
 odd,nearest_wide,t>0.9,71976,0.666667,0.446459,0
@@ -344,6 +368,9 @@ rand,nearest_comp,t>0.9,1151616,0.976222,0.130447,0
 rand,nearest_comp_nofma,all,4194304,0.998514,0.16962,0
 rand,nearest_comp_nofma,t<0.1,1154560,0.952445,0.247169,0
 rand,nearest_comp_nofma,t>0.9,1151616,0.976222,0.130447,0
+rand,left_comp_nofma,all,4194304,0.998514,0.16962,0
+rand,left_comp_nofma,t<0.1,1154560,0.952445,0.247169,0
+rand,left_comp_nofma,t>0.9,1151616,0.976222,0.130447,0
 rand,nearest_wide,all,4194304,0.998514,0.169622,0.107932
 rand,nearest_wide,t<0.1,1154560,0.952445,0.247167,0.10766
 rand,nearest_wide,t>0.9,1151616,0.976222,0.130441,0.108456

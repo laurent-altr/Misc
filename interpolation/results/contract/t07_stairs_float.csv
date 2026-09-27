@@ -76,6 +76,13 @@ nearest_comp_nofma,x~0,8192,8192,0,0,0,0
 nearest_comp_nofma,y~0,257898,255771,0,0,3968,0
 nearest_comp_nofma,rand,466285,466271,0,0,1,0
 nearest_comp_nofma,all,2100927,2098763,0,0,3968,0
+left_comp_nofma,t~0,556917,556903,0,0,1,0
+left_comp_nofma,t~.5,516108,516099,0,0,1,0
+left_comp_nofma,t~1,295527,295527,0,0,0,0
+left_comp_nofma,x~0,8192,8192,0,0,0,0
+left_comp_nofma,y~0,257898,255754,0,0,3968,0
+left_comp_nofma,rand,466285,466273,0,0,1,0
+left_comp_nofma,all,2100927,2098748,0,0,3968,0
 nearest_wide,t~0,556917,556905,0,0,1,0
 nearest_wide,t~.5,516108,516100,0,0,1,0
 nearest_wide,t~1,295527,295527,0,0,0,0

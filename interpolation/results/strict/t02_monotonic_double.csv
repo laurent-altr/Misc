@@ -98,6 +98,15 @@ nearest_comp_nofma,steep,1024,0,0
 nearest_comp_nofma,neg,262144,0,0
 nearest_comp_nofma,odd,262144,0,0
 nearest_comp_nofma,rand,4194304,0,0
+left_comp_nofma,unit,262144,0,0
+left_comp_nofma,off,128,0,0
+left_comp_nofma,yoff,262144,0,0
+left_comp_nofma,sign,262144,0,0
+left_comp_nofma,flat,262144,0,0
+left_comp_nofma,steep,1024,0,0
+left_comp_nofma,neg,262144,0,0
+left_comp_nofma,odd,262144,0,0
+left_comp_nofma,rand,4194304,0,0
 nearest_wide,unit,262144,0,0
 nearest_wide,off,128,0,0
 nearest_wide,yoff,262144,0,0

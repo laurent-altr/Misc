@@ -137,6 +137,27 @@ template <class T> INTERP_NO_CONTRACT T nearest_comp_nofma(T x0, T x1, T y0, T y
     return sum + (sum_e + (p_e + (h * s_lo + h_e * s)));
 }
 
+// L: H' anchored always on x0 (no nearest-bound choice). Because every
+// rounding error is compensated, the anchor does not matter for accuracy
+// (t07, t10), and dropping the choice removes a compare and a branch.
+template <class T> INTERP_NO_CONTRACT T left_comp_nofma(T x0, T x1, T y0, T y1, T x) {
+    T dx, dx_e, dy, dy_e;
+    two_sum(x1, -x0, dx, dx_e);
+    two_sum(y1, -y0, dy, dy_e);
+    const T s = dy / dx;
+    T q, q_e;
+    two_prod(s, dx, q, q_e);
+    const T r = (dy - q) - q_e;
+    const T s_lo = (r + dy_e - s * dx_e) / dx;
+    T h, h_e;
+    two_sum(x, -x0, h, h_e);
+    T p, p_e;
+    two_prod(h, s, p, p_e);
+    T sum, sum_e;
+    two_sum(y0, p, sum, sum_e);
+    return sum + (sum_e + (p_e + (h * s_lo + h_e * s)));
+}
+
 // H' with the per-segment part precomputed (for a fixed table): the slope
 // and its correction term are computed once. Same bits as H'.
 template <class T> struct CompSeg {
@@ -186,7 +207,7 @@ template <class T> struct Formula {
     Fn<T> f;
 };
 
-template <class T> std::array<Formula<T>, 12> formulas() {
+template <class T> std::array<Formula<T>, 13> formulas() {
     return {{
         {"A",   "left",       left<T>},
         {"A'",  "left_slope", left_slope<T>},
@@ -199,6 +220,7 @@ template <class T> std::array<Formula<T>, 12> formulas() {
         {"G",   "nearest_fma",  nearest_fma<T>},
         {"H",   "nearest_comp", nearest_comp<T>},
         {"H'",  "nearest_comp_nofma", nearest_comp_nofma<T>},
+        {"L",   "left_comp_nofma", left_comp_nofma<T>},
         {"W",   "nearest_wide", nearest_wide<T>},
     }};
 }
