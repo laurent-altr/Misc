@@ -62,10 +62,12 @@ template <class T> T nearest_fma(T x0, T x1, T y0, T y1, T x) {
 // the rounded product no longer matches. This attribute disables contraction
 // for the function and everything inlined into it. It does NOT protect against
 // -ffast-math: that needs a separate translation unit compiled without it.
+#if !defined(INTERP_NO_CONTRACT)
 #if defined(__GNUC__) && !defined(__clang__)
 #define INTERP_NO_CONTRACT __attribute__((optimize("fp-contract=off")))
 #else
 #define INTERP_NO_CONTRACT
+#endif
 #endif
 
 // Error-free transformation: a + b == s + e exactly.
@@ -133,6 +135,32 @@ template <class T> INTERP_NO_CONTRACT T nearest_comp_nofma(T x0, T x1, T y0, T y
     T sum, sum_e;
     two_sum(ya, p, sum, sum_e);
     return sum + (sum_e + (p_e + (h * s_lo + h_e * s)));
+}
+
+// H' with the per-segment part precomputed (for a fixed table): the slope
+// and its correction term are computed once. Same bits as H'.
+template <class T> struct CompSeg {
+    T x0, x1, y0, y1, s, s_lo;
+};
+
+template <class T> INTERP_NO_CONTRACT CompSeg<T> make_comp_seg(T x0, T x1, T y0, T y1) {
+    T dx, dx_e, dy, dy_e, q, q_e;
+    two_sum(x1, -x0, dx, dx_e);
+    two_sum(y1, -y0, dy, dy_e);
+    const T s = dy / dx;
+    two_prod(s, dx, q, q_e);
+    const T r = (dy - q) - q_e;
+    return {x0, x1, y0, y1, s, (r + dy_e - s * dx_e) / dx};
+}
+
+template <class T> INTERP_NO_CONTRACT T eval_comp_seg(const CompSeg<T>& g, T x) {
+    const bool left_side = x - g.x0 < g.x1 - x;
+    const T xa = left_side ? g.x0 : g.x1, ya = left_side ? g.y0 : g.y1;
+    T h, h_e, p, p_e, sum, sum_e;
+    two_sum(x, -xa, h, h_e);
+    two_prod(h, g.s, p, p_e);
+    two_sum(ya, p, sum, sum_e);
+    return sum + (sum_e + (p_e + (h * g.s_lo + h_e * g.s)));
 }
 
 template <class T> using wide_t = std::conditional_t<std::is_same_v<T, float>, double, long double>;

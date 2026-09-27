@@ -1,0 +1,47 @@
+t10: naive formula A vs compensated H' (fma-free)
+
+=== quality, float ===
+metric        A (naive)           H'
+------------------------------------
+correctly rounded       61.92%      100.00%
+mean err (ulp)         2.91     1.95e-05
+max err (ulp)     8.75e+04            1
+steps = CR       50.29%      100.00%
+stalls             6598            0
+backward steps            0            0
+extra flat run           68            0
+exact at x0      100.00%      100.00%
+exact at x1       62.25%      100.00%
+knot mismatch       37.50%        0.00%
+
+=== quality, double ===
+metric        A (naive)           H'
+------------------------------------
+correctly rounded       64.73%      100.00%
+mean err (ulp)         2.57            0
+max err (ulp)     1.41e+05            0
+steps = CR       50.94%      100.00%
+stalls             6154            0
+backward steps            0            0
+extra flat run           42            0
+exact at x0      100.00%      100.00%
+exact at x1       84.40%      100.00%
+knot mismatch       15.25%        0.00%
+
+=== speed, float ===
+pattern     A (naive)         H'   Hp (pre)       H'/A       Hp/A
+-----------------------------------------------------------------
+independent       0.91      12.60          -      13.8x          -
+table           53.84      73.04      68.83       1.4x       1.3x
+sweep            0.81       8.01       4.22       9.9x       5.2x
+(ns per call; the table pattern includes a binary search costing 61.29 ns alone)
+
+=== speed, double ===
+pattern     A (naive)         H'   Hp (pre)       H'/A       Hp/A
+-----------------------------------------------------------------
+independent       1.11      11.30          -      10.1x          -
+table           55.72      64.82      58.46       1.2x       1.0x
+sweep            1.14       9.04       3.76       7.9x       3.3x
+(ns per call; the table pattern includes a binary search costing 54.04 ns alone)
+
+all guaranteed-property checks passed

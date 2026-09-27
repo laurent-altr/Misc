@@ -16,7 +16,7 @@ jumps that the exact segment does not have. The answer is formula **H**
 
 ```
 make              # build + run the strict configuration (-O2 -ffp-contract=off)
-make run CFG=fast # one configuration: strict, contract, fast, O0, noinline (x87 if -m32 works)
+make run CFG=fast # one configuration: strict, native, contract, fast, O0, noinline (x87 if -m32 works)
 make matrix       # every configuration, then list the CSVs that differ from strict
 make clean
 ```
@@ -25,7 +25,7 @@ This requires g++ with C++20 and libquadmath. The reference values are
 computed in `__float128`. Each test prints tables to stdout. The output is
 also saved as `results/<cfg>/<test>.txt` and as CSV files. A test exits
 non-zero only when a *guaranteed* property is violated. `make matrix` takes
-about 9 minutes. The `fast` configuration is expected to fail t09 (see below).
+about 12 minutes. The `fast` configuration is expected to fail t09 (see below).
 
 ## Formulas
 
@@ -60,6 +60,7 @@ Every formula below is written for `x` in `[x0,x1]`, with `dx = x1-x0` and
 | `t06_anchor_switch` | monotonicity around the switch point of E, G, H, W at mid-interval |
 | `t07_stairs` | **goal**: runs of 2048 consecutive `x` near t≈0, t≈0.5, t≈1, x≈0, y≈0 and random t; steps compared with the CR steps, and the step sequences printed for a few cases |
 | `t08_speed` | ns per call |
+| `t10_naive_vs_comp` | head-to-head A (naive) vs H': quality summary and speed in three usage patterns |
 | `t09_error_free` | `two_sum` / `two_prod` exact under the current flags (vs `__float128`); H vs H' bit for bit |
 
 Errors are expressed in ulps of `max(|y0|,|y1|)`. Near a zero crossing, the
@@ -126,7 +127,8 @@ data computed in `double`, but not for double data near `y≈0`.
 Guarantees and caveats for H:
 - It is exact at both bounds (checked in t01) and preserves constants.
 - No backward step was observed (t02, t06), but monotonicity is not proven.
-- It needs strict IEEE evaluation. **`-ffast-math` destroys it**: the compiler
+- It needs strict IEEE evaluation. **`-ffast-math` destroys it** (t10 under
+  `-ffast-math`: H' drops to 74 % correctly rounded): the compiler
   simplifies the TwoSum error terms to 0, and H drops to 69 % of steps equal
   to CR, which is no better than E. `-ffp-contract=fast` does no harm.
 
@@ -242,11 +244,65 @@ and all 2×2^21 error-free transformations are exact. What can break them is a
 - Veltkamp's split overflows for `|a|` above about 2^996 (double) or 2^115
   (float).
 
+### Naive (A) vs H': quality and speed (t10)
+
+Quality: 2000 random segments, 512 random `x` each, plus runs of 512
+consecutive `x` (at a random `t` and near `x1`), plus 1000 random tables.
+
+| metric | float A | float H' | double A | double H' |
+|--------|--------:|---------:|---------:|----------:|
+| correctly rounded results | 61.9 % | 100.0 % | 64.7 % | 100.0 % |
+| mean error (ulps of y) | 2.9 | 0.00002 | 2.6 | 0 |
+| max error (ulps of y, near y≈0) | 87 500 | 1 | 141 000 | 0 |
+| steps equal to the CR step | 50.3 % | 100.0 % | 50.9 % | 100.0 % |
+| stalls (flat while CR moves) | 6 598 | 0 | 6 154 | 0 |
+| backward steps | 0 | 0 | 0 | 0 |
+| extra flat run | 68 | 0 | 42 | 0 |
+| exact at `x1` | 62.3 % | 100 % | 84.4 % | 100 % |
+| knots where the left interval misses `Y[k]` | 37.5 % | 0 % | 15.3 % | 0 % |
+
+Speed in ns per call, on a 2.1 GHz Xeon. Each loop is an out-of-line loop
+over plain arrays, so gcc may inline and vectorize the formula. Hp is H' with
+the slope and its correction precomputed per segment (`make_comp_seg` /
+`eval_comp_seg`, same bits as H').
+
+| pattern | build | A | H' | Hp | H'/A |
+|---------|-------|--:|---:|---:|-----:|
+| independent (new segment and `x` each call) | `-O2` | 1.1 | 11.3 | - | 10× |
+| | `-O3 -march=native` | 1.1 | 10.2 | - | 9× |
+| sweep (one segment, array of `x`) | `-O2` | 1.1 | 9.0 | 3.8 | 8× |
+| | `-O3 -march=native` | 0.54 | 1.04 | 1.12 | **2×** |
+| table (1024 knots, binary search + interpolation) | `-O2` | 56 | 65 | 58 | 1.2× |
+| | `-O3 -march=native` | 49 | 58 | 65 | 1.2× |
+
+(double; float is similar. `results/<cfg>/t10_naive_vs_comp.txt` has both.)
+
+- **Independent calls:** H' costs about 10 ns more. Most of it is the
+  arithmetic: 2 divisions and about 45 other operations, against 1 division
+  and 3 operations for A. The unpredictable choice of the nearest bound adds
+  about 4 ns: with `x` always in the left half, H' costs 6.6 ns. A branchless
+  selection (bit masks) removes the misprediction but does not make it faster
+  overall, so it was not kept.
+- **Sweep:** at `-O3 -march=native`, gcc vectorizes both formulas (AVX2,
+  4 doubles at a time), and H' is only 2× A. At `-O2`, gcc 13 does not inline
+  H' (it is too large for the `-O2` heuristics), so each point pays a call and
+  no vectorization. Use `-O3`, or force inlining.
+- **Table:** the binary search (about 55 ns with random queries) dominates, so
+  H' adds only about 10 ns (+20 %). Precomputing the segment data (Hp) removes
+  the divisions but makes no reliable difference here. It pays off only in
+  scalar sweeps at `-O2` (3.8 against 9 ns). Timings in this pattern vary by ±10 ns between runs.
+- The `INTERP_NO_CONTRACT` attribute does not change speed: with or without
+  it, the times are identical. It can be disabled with
+  `-DINTERP_NO_CONTRACT=` in a build that already uses `-ffp-contract=off`.
+
 ## Practical takeaways
 
 - **For smooth `y` over successive `x` (no extra stairs), use H.** For `float`
   data, W (compute in `double`, round once) is simpler and just as good. Both
   cost about 3-5× a plain formula (roughly 10-15 ns instead of 2.5 ns).
+- Cost of H' against the naive formula: about +10 ns per isolated call, 2×
+  in a vectorized loop at `-O3 -march=native`, and +20 % when a table search
+  is involved.
 - Without hardware FMA, use H' (same bits as H). Keep `INTERP_NO_CONTRACT` on
   it so a later `-march=native` build cannot silently break it.
 - Never compile H or H' with `-ffast-math`. If needed, isolate it in a translation
