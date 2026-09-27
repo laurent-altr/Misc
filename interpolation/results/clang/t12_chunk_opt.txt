@@ -1,0 +1,35 @@
+t12: optimizing L in chunks of 128 lanes (FMA available)
+
+=== float, slow x (steps up to 0.2 % of the knot spacing) ===
+lanes changing interval per chunk: 0.07 %
+layout      naive slope            L        L fma    L / naive
+--------------------------------------------------------------
+table              1.02         1.59         1.25        1.23x
+cached             0.29         0.66         0.50        1.74x
+(ns per point; cached refresh alone: 0.19 ns; L / naive uses L fma when available)
+
+=== double, slow x (steps up to 0.2 % of the knot spacing) ===
+lanes changing interval per chunk: 0.07 %
+layout      naive slope            L        L fma    L / naive
+--------------------------------------------------------------
+table              1.31         2.36         1.73        1.32x
+cached             0.48         1.27         0.93        1.92x
+(ns per point; cached refresh alone: 0.27 ns; L / naive uses L fma when available)
+
+=== float, moving x (steps up to 5.0 % of the knot spacing) ===
+lanes changing interval per chunk: 2.29 %
+layout      naive slope            L        L fma    L / naive
+--------------------------------------------------------------
+table              1.43         2.01         1.68        1.18x
+cached             1.25         1.62         1.42        1.14x
+(ns per point; cached refresh alone: 1.12 ns; L / naive uses L fma when available)
+
+=== double, moving x (steps up to 5.0 % of the knot spacing) ===
+lanes changing interval per chunk: 2.29 %
+layout      naive slope            L        L fma    L / naive
+--------------------------------------------------------------
+table              1.80         2.86         2.24        1.24x
+cached             1.42         2.25         1.91        1.34x
+(ns per point; cached refresh alone: 1.24 ns; L / naive uses L fma when available)
+
+all guaranteed-property checks passed

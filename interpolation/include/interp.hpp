@@ -62,6 +62,20 @@ template <class T> T nearest_fma(T x0, T x1, T y0, T y1, T x) {
 // the rounded product no longer matches. This attribute disables contraction
 // for the function and everything inlined into it. It does NOT protect against
 // -ffast-math: that needs a separate translation unit compiled without it.
+// clang / Intel icpx: the gcc attribute above does not exist. Instead,
+// INTERP_STRICT_FP, placed first in a function body, makes that body
+// value-safe (no reassociation, no contraction), even under -ffast-math or
+// icpx's default -fp-model=fast. It is also put in the error-free helpers,
+// because clang attaches these settings to each operation where it is written,
+// not where it is inlined.
+#if !defined(INTERP_STRICT_FP)
+#if defined(__clang__)
+#define INTERP_STRICT_FP _Pragma("float_control(precise, on)") _Pragma("clang fp contract(off)")
+#else
+#define INTERP_STRICT_FP
+#endif
+#endif
+
 #if !defined(INTERP_NO_CONTRACT)
 #if defined(__GNUC__) && !defined(__clang__)
 #define INTERP_NO_CONTRACT __attribute__((optimize("fp-contract=off")))
@@ -72,6 +86,7 @@ template <class T> T nearest_fma(T x0, T x1, T y0, T y1, T x) {
 
 // Error-free transformation: a + b == s + e exactly.
 template <class T> void two_sum(T a, T b, T& s, T& e) {
+    INTERP_STRICT_FP
     s = a + b;
     T bb = s - a;
     e = (a - (s - bb)) + (b - bb);
@@ -81,6 +96,7 @@ template <class T> void two_sum(T a, T b, T& s, T& e) {
 // slope, of x - xa (bits of x lost when |x - xa| >> |x|) and of the product,
 // and adds them back before the final rounding (double-length accuracy).
 template <class T> INTERP_NO_CONTRACT T nearest_comp(T x0, T x1, T y0, T y1, T x) {
+    INTERP_STRICT_FP
     const bool left_side = x - x0 < x1 - x;
     const T xa = left_side ? x0 : x1, ya = left_side ? y0 : y1;
     T dx, dx_e, dy, dy_e;
@@ -102,6 +118,7 @@ template <class T> INTERP_NO_CONTRACT T nearest_comp(T x0, T x1, T y0, T y1, T x
 // Veltkamp's split of each factor into two half-width parts. Valid while
 // |a|, |b| stay far from the overflow threshold.
 template <class T> void split(T a, T& hi, T& lo) {
+    INTERP_STRICT_FP
     constexpr T factor = std::is_same_v<T, float> ? T(4097) : T(134217729);  // 2^ceil(p/2) + 1
     const T c = factor * a;
     hi = c - (c - a);
@@ -109,6 +126,7 @@ template <class T> void split(T a, T& hi, T& lo) {
 }
 
 template <class T> void two_prod(T a, T b, T& p, T& e) {
+    INTERP_STRICT_FP
     p = a * b;
     T ah, al, bh, bl;
     split(a, ah, al);
@@ -118,6 +136,7 @@ template <class T> void two_prod(T a, T b, T& p, T& e) {
 
 // H': same as H without fma: the exact products use two_prod instead.
 template <class T> INTERP_NO_CONTRACT T nearest_comp_nofma(T x0, T x1, T y0, T y1, T x) {
+    INTERP_STRICT_FP
     const bool left_side = x - x0 < x1 - x;
     const T xa = left_side ? x0 : x1, ya = left_side ? y0 : y1;
     T dx, dx_e, dy, dy_e;
@@ -141,6 +160,7 @@ template <class T> INTERP_NO_CONTRACT T nearest_comp_nofma(T x0, T x1, T y0, T y
 // rounding error is compensated, the anchor does not matter for accuracy
 // (t07, t10), and dropping the choice removes a compare and a branch.
 template <class T> INTERP_NO_CONTRACT T left_comp_nofma(T x0, T x1, T y0, T y1, T x) {
+    INTERP_STRICT_FP
     T dx, dx_e, dy, dy_e;
     two_sum(x1, -x0, dx, dx_e);
     two_sum(y1, -y0, dy, dy_e);
@@ -166,6 +186,7 @@ template <class T> struct CompSeg {
 };
 
 template <class T> INTERP_NO_CONTRACT CompSeg<T> make_comp_seg(T x0, T x1, T y0, T y1) {
+    INTERP_STRICT_FP
     T dx, dx_e, dy, dy_e, q, q_e;
     two_sum(x1, -x0, dx, dx_e);
     two_sum(y1, -y0, dy, dy_e);
@@ -178,6 +199,7 @@ template <class T> INTERP_NO_CONTRACT CompSeg<T> make_comp_seg(T x0, T x1, T y0,
 }
 
 template <class T> INTERP_NO_CONTRACT T eval_comp_seg(const CompSeg<T>& g, T x) {
+    INTERP_STRICT_FP
     const bool left_side = x - g.x0 < g.x1 - x;
     const T xa = left_side ? g.x0 : g.x1, ya = left_side ? g.y0 : g.y1;
     T h, h_e, hh, hl, sum, sum_e;

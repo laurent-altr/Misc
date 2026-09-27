@@ -63,6 +63,7 @@ Every formula below is written for `x` in `[x0,x1]`, with `dx = x1-x0` and
 | `t08_speed` | ns per call |
 | `t10_naive_vs_comp` | head-to-head A (naive) vs H': quality summary and speed in three usage patterns |
 | `t11_chunks` | chunks of 128 lanes, each with its own interval guess: one lane at a time vs vectorized chunk loops (`include/chunk.hpp`) |
+| `t12_chunk_opt` | optimizing L for chunks: per-lane cache vs table gathers, hardware FMA, gcc vs clang, AVX2 vs AVX-512 |
 | `t09_error_free` | `two_sum` / `two_prod` exact under the current flags (vs `__float128`); H vs H' bit for bit |
 
 Errors are expressed in ulps of `max(|y0|,|y1|)`. Near a zero crossing, the
@@ -374,6 +375,76 @@ up to 0.2 % (0.1 % of lanes change interval):
   Check `-fopt-info-vec` after any change to these loops. The
   `INTERP_NO_CONTRACT` attribute does not prevent vectorization.
 
+### Optimizing L further (t12)
+
+Three ideas were tested on chunks of 128 lanes:
+
+1. **Per-lane cache (`chunk::Lanes`).** When `x` changes slowly, each lane
+   keeps the data of its current interval (anchor, bounds, `y0`, slope,
+   correction, split) in 128-long arrays. Evaluation then reads contiguous
+   memory, with no gathers. The interval check is a contiguous compare with an
+   **early exit** when no lane moved, which is the common case. Only lanes
+   that left their interval are refreshed, one at a time. The cost is about
+   8 values per lane of extra memory.
+2. **Hardware FMA** for the exact product: `p_e = fma(h, s, -p)`, 2
+   instructions instead of Dekker's product (about 10). It gives the same bits.
+   Every AVX2 CPU has FMA.
+3. **Wider vectors:** `-mprefer-vector-width=512` on an AVX-512 CPU. gcc and
+   clang use 256-bit vectors by default.
+
+The same bits come out of every variant (checked). Median of 5 runs, ns per
+point, slow `x` (0.07 % of lanes change interval per call), double:
+
+| compiler, vectors | naive (table) | L (table) | naive (cache) | L (cache) | **L (cache + FMA)** |
+|-------------------|------:|------:|------:|------:|------:|
+| gcc 13, AVX2 | 1.28 | 2.37 | 0.59 | 1.31 | **0.96** |
+| gcc 13, AVX-512 | 1.06 | 1.94 | 0.41 | 0.93 | **0.72** |
+| clang 18, AVX2 | 1.31 | 2.36 | 0.49 | 1.27 | **0.93** |
+| clang 18, AVX-512 | 1.25 | 2.03 | 0.41 | 0.95 | **0.70** |
+
+In float, L with cache and FMA costs 0.41-0.51 ns against 0.25-0.29 ns for the
+naive formula.
+
+- The cache is the largest gain: 2.4× for L (2.37 → 0.96 ns), because it
+  removes 6 gathers per lane. It also helps the naive formula (1.28 → 0.59).
+- FMA gains another 25-30 %. AVX-512 gains about 25 %, but check it on the
+  target CPU, since some Intel CPUs lower their clock speed for 512-bit code.
+- Result: **correctly rounded, stair-free interpolation for about +0.3-0.4 ns
+  per point (1.7×) over the naive formula** with the same optimizations.
+- When `x` moves faster (2.3 % of lanes per call), the scalar refresh of the
+  moved lanes dominates (1.2-1.4 ns), and the cache no longer pays off
+  (`results/*/t12_chunk_opt.txt`).
+- No branches remain in the hot loops, except the rare refresh. Hand-written
+  intrinsics are unlikely to help much: both compilers already produce
+  AVX2/AVX-512 code for these loops, at about 1.5-2 cycles per point.
+- A flag storing which bound the previous call used (for example a negative
+  interval index meaning "right bound") is not needed: L always uses the left
+  bound, with the same accuracy (see t11).
+
+**Intel compilers (icpx) and clang.** icpx is built on LLVM and defaults to
+`-fp-model=fast`, which breaks the error-free transformations like
+`-ffast-math`. The gcc `optimize` attribute does not exist in clang/icpx, so
+the header uses `INTERP_STRICT_FP` instead: a
+`_Pragma("float_control(precise, on)") _Pragma("clang fp contract(off)")`
+placed first in the body of every function involved, including `two_sum`,
+`split` and `two_prod`. clang attaches these settings to each operation where
+it is written, not where it is inlined. Verified with clang 18:
+
+| clang 18 build | two_sum / two_prod exact | L steps = CR |
+|----------------|--------------------------|--------------|
+| `-ffp-contract=off` | yes | 99.927 % |
+| `-ffast-math` with the pragma | **yes** | **99.927 %** |
+| `-ffast-math` without the pragma (`-DINTERP_STRICT_FP=`) | no | 77.2 % |
+| `-ffp-contract=fast` | yes | 99.926 % |
+
+The pragma costs nothing measurable (0.91-0.93 ns with or without it). Unlike
+gcc, clang can thus keep these functions exact inside a fast-math build. With
+icpx, `-fp-model=precise` for this code is still the safest choice.
+Suggested flags: `icpx -O3 -xHost -fp-model=precise` (or `-march=native`),
+then check the loops with `-qopt-report` / `-Rpass=loop-vectorize`. icpx was
+not available on the test machine. clang 18 was used as a stand-in, since
+both are built on LLVM.
+
 ## Practical takeaways
 
 - **For smooth `y` over successive `x` (no extra stairs), use H.** For `float`
@@ -384,11 +455,12 @@ up to 0.2 % (0.1 % of lanes change interval):
   stay in the same interval (a good initial guess), precompute the segment
   data (`make_comp_seg` once per interval, then `eval_comp_seg`): about +2 ns
   per call.
-- For chunks of many `x` with per-lane interval guesses, use
-  `chunk::update` + `chunk::eval_comp_left` (L) compiled with
-  `-O3 -march=native`: about 2.2 ns per point in double with slowly changing
-  `x`, against 1.2 ns for the naive formula with a precomputed slope. L needs
-  no choice of the nearest bound.
+- For chunks of many `x` with per-lane interval guesses and slowly changing
+  `x` (a finite element solver), use the per-lane cache: `chunk::init` once,
+  then `chunk::refresh` + `chunk::eval_cached_fma` per call, compiled with
+  `-O3 -march=native` (plus `-mprefer-vector-width=512` on AVX-512). This costs
+  about 0.7-1.0 ns per point in double, against 0.4-0.6 ns for the naive
+  formula with the same cache. L needs no choice of the nearest bound.
 - Without hardware FMA, use H' (same bits as H). Keep `INTERP_NO_CONTRACT` on
   it so a later `-march=native` build cannot silently break it.
 - Never compile H or H' with `-ffast-math`. If needed, isolate it in a translation
