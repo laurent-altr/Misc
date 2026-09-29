@@ -1,0 +1,11 @@
+metric,naive,comp_nofma
+correctly rounded,59.66%,72.15%
+mean err (ulp),3.23,1.75
+max err (ulp),8.73e+04,8.73e+04
+steps = CR,50.29%,78.75%
+stalls,6598,1028
+backward steps,0,0
+extra flat run,68,16
+exact at x0,100.00%,100.00%
+exact at x1,56.05%,100.00%
+knot mismatch,37.50%,0.00%

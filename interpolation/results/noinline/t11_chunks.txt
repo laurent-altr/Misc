@@ -1,0 +1,43 @@
+t11: chunks of 128 lanes with per-lane interval guesses
+
+=== float, moving x (steps up to 5.0 % of the knot spacing) ===
+lanes changing interval per chunk: 2.3 % (0.000 % by more than one)
+formula          scalar      chunked     (update)
+-------------------------------------------------
+naive              3.69         4.19         3.19
+naive, slope            -         3.82         3.19
+H' (pre)          12.80         9.43         3.19
+L (pre)               -         9.08         3.19
+(ns per point, 512 chunks of 128 lanes)
+
+=== double, moving x (steps up to 5.0 % of the knot spacing) ===
+lanes changing interval per chunk: 2.3 % (0.000 % by more than one)
+formula          scalar      chunked     (update)
+-------------------------------------------------
+naive              4.92         4.42         3.19
+naive, slope            -         3.83         3.19
+H' (pre)          13.61         9.55         3.19
+L (pre)               -         9.05         3.19
+(ns per point, 512 chunks of 128 lanes)
+
+=== float, slow x (steps up to 0.2 % of the knot spacing) ===
+lanes changing interval per chunk: 0.1 % (0.000 % by more than one)
+formula          scalar      chunked     (update)
+-------------------------------------------------
+naive              3.32         2.77         1.78
+naive, slope            -         2.42         1.78
+H' (pre)          10.64         7.99         1.78
+L (pre)               -         7.54         1.78
+(ns per point, 512 chunks of 128 lanes)
+
+=== double, slow x (steps up to 0.2 % of the knot spacing) ===
+lanes changing interval per chunk: 0.1 % (0.000 % by more than one)
+formula          scalar      chunked     (update)
+-------------------------------------------------
+naive              4.81         3.01         1.79
+naive, slope            -         2.42         1.79
+H' (pre)          11.41         8.09         1.79
+L (pre)               -         7.40         1.79
+(ns per point, 512 chunks of 128 lanes)
+
+all guaranteed-property checks passed

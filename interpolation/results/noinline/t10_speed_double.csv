@@ -1,0 +1,5 @@
+pattern,naive_ns,comp_ns,comp_pre_ns
+independent,0.954163,16.846,-1
+table,65.1801,78.6667,86.9962
+hunt,2.03729,14.8056,6.75446
+sweep,1.6972,12.4009,5.02094

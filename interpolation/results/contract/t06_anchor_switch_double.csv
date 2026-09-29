@@ -1,0 +1,8 @@
+formula,segments,segments_with_violation,violations,worst_ulps
+left,20000,0,0,0
+right,20000,0,0,0
+nearest,20000,4,4,2
+nearest_fma,20000,10,10,14
+nearest_comp,20000,0,0,0
+nearest_comp_nofma,20000,0,0,0
+nearest_wide,20000,0,0,0

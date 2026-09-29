@@ -1,0 +1,4 @@
+check,cases,failures,zero_error_terms
+two_sum,2097152,0,153419
+two_prod,2097152,0,2
+h_vs_hnofma,2097152,0,0

@@ -1,0 +1,49 @@
+t10: naive formula A vs compensated H' (fma-free)
+
+=== quality, float ===
+metric        A (naive)           H'
+------------------------------------
+correctly rounded       61.92%      100.00%
+mean err (ulp)         2.91     1.95e-05
+max err (ulp)     8.75e+04            1
+steps = CR       50.29%      100.00%
+stalls             6598            0
+backward steps            0            0
+extra flat run           68            0
+exact at x0      100.00%      100.00%
+exact at x1       62.25%      100.00%
+knot mismatch       37.50%        0.00%
+
+=== quality, double ===
+metric        A (naive)           H'
+------------------------------------
+correctly rounded       64.73%      100.00%
+mean err (ulp)         2.57            0
+max err (ulp)     1.41e+05            0
+steps = CR       50.94%      100.00%
+stalls             6154            0
+backward steps            0            0
+extra flat run           42            0
+exact at x0      100.00%      100.00%
+exact at x1       84.40%      100.00%
+knot mismatch       15.25%        0.00%
+
+=== speed, float ===
+pattern     A (naive)         H'   Hp (pre)       H'/A       Hp/A
+-----------------------------------------------------------------
+independent       0.91      12.46          -      13.7x          -
+table           59.84      71.40      63.93       1.2x       1.1x
+hunt             1.20       7.59       4.32       6.3x       3.6x
+sweep            0.72       7.04       3.82       9.8x       5.3x
+(ns per call; the search alone costs 53.90 ns in the table pattern, 1.15 ns in the hunt pattern)
+
+=== speed, double ===
+pattern     A (naive)         H'   Hp (pre)       H'/A       Hp/A
+-----------------------------------------------------------------
+independent       1.21      10.79          -       8.9x          -
+table           54.62      67.97      53.12       1.2x       1.0x
+hunt             1.51       9.81       3.39       6.5x       2.3x
+sweep            1.21       9.61       3.01       7.9x       2.5x
+(ns per call; the search alone costs 46.47 ns in the table pattern, 0.91 ns in the hunt pattern)
+
+all guaranteed-property checks passed

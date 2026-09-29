@@ -1,0 +1,17 @@
+t13: intrinsics vs compiler vectorization (double, 128 lanes, AVX-512 available)
+
+x steps up to 0.2 % of the knot spacing (refresh + evaluation, ns per point)
+variant           total refresh only
+------------------------------------
+compiler           0.83         0.27
+AVX2 intr.         1.07         0.31
+AVX-512 intr.         0.92         0.31
+
+x steps up to 5.0 % of the knot spacing (refresh + evaluation, ns per point)
+variant           total refresh only
+------------------------------------
+compiler           2.08         1.60
+AVX2 intr.         1.90         1.10
+AVX-512 intr.         1.70         1.10
+
+all guaranteed-property checks passed

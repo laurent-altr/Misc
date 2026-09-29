@@ -1,0 +1,14 @@
+formula,knots,left_ne,right_ne,max_jump_ulps,mono_checks,mono_violations
+left,152000,29921,0,3,76000,12
+left_slope,152000,29956,0,3,76000,11
+left_t,152000,26431,0,1,76000,7
+right,152000,0,29845,3,76000,25
+weights,152000,0,0,0,76000,893
+fma,152000,26431,0,1,76000,7
+nearest,152000,0,0,0,76000,0
+std::lerp,152000,0,0,0,76000,0
+nearest_fma,152000,0,0,0,76000,0
+nearest_comp,152000,0,0,0,76000,0
+nearest_comp_nofma,152000,0,0,0,76000,0
+left_comp_nofma,152000,0,0,0,76000,0
+nearest_wide,152000,0,0,0,76000,0

@@ -1,0 +1,3 @@
+step,compiler_ns,avx2_ns,avx512_ns,refresh_compiler_ns,refresh_intr_ns
+0.002,1.07257,1.06482,0.903076,0.380188,0.310791
+0.05,2.34628,1.98265,1.69719,1.58611,1.11507
